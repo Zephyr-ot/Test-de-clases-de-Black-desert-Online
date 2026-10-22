@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Oráculo de Calaphae — Sua classe de Black Desert</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+:root{
+  --obsidian:#0d0b09; --obsidian-2:#171310; --obsidian-3:#221c17;
+  --sand:#c9a668; --sand-bright:#e3c48a; --sand-dim:#8a7449;
+  --blood:#a1402e; --blood-bright:#c65540;
+  --bone:#ece4d3; --bone-dim:#a89e8c; --ash:#6b6255; --arcane:#4a9b92;
+  --line: rgba(201,166,104,0.18);
+}
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body{ margin:0; padding:0; }
+body{
+  min-height:100vh;
+  background: radial-gradient(ellipse 900px 500px at 50% -10%, #241c15 0%, transparent 60%),
+              linear-gradient(180deg, #131009 0%, #0d0b09 55%, #0a0807 100%);
+  color:var(--bone); font-family:'Work Sans', sans-serif;
+  display:flex; align-items:center; justify-content:center; padding:32px 16px; overflow-x:hidden;
+}
+body::before{
+  content:""; position:fixed; inset:0; pointer-events:none; opacity:0.05;
+  background-image: repeating-linear-gradient(115deg, var(--sand) 0px, transparent 1px, transparent 3px),
+                     repeating-linear-gradient(25deg, var(--bone) 0px, transparent 1px, transparent 4px);
+  mix-blend-mode:overlay;
+}
+.stage{ width:100%; max-width:700px; position:relative; z-index:1; }
+h1,h2,h3{ font-family:'Cinzel', serif; margin:0; font-weight:600; }
+.compass{ display:flex; justify-content:center; margin-bottom:18px; }
+.compass svg{ width:88px; height:88px; }
+.compass-ring{ animation: spin 60s linear infinite; transform-origin:50% 50%; }
+@keyframes spin{ to{ transform:rotate(360deg); } }
+@media (prefers-reduced-motion: reduce){ .compass-ring{ animation:none; } }
+.card{
+  background:linear-gradient(180deg, var(--obsidian-2), var(--obsidian-3));
+  border:1px solid var(--line); border-radius:2px; padding:40px 36px;
+  box-shadow:0 30px 60px -20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.02); position:relative;
+}
+.card::before{
+  content:""; position:absolute; top:0; left:0; right:0; height:2px;
+  background:linear-gradient(90deg, transparent, var(--sand-dim), var(--blood), var(--sand-dim), transparent); opacity:0.7;
+}
+.eyebrow{ font-family:'JetBrains Mono', monospace; font-size:11px; letter-spacing:0.22em; text-transform:uppercase; color:var(--sand-dim); margin:0 0 14px; text-align:center; }
+.intro h1{ font-size:25px; text-align:center; color:var(--sand-bright); line-height:1.3; }
+.intro .sub{ text-align:center; color:var(--bone-dim); font-size:14px; margin:14px auto 0; max-width:500px; line-height:1.65; }
+.chips-preview{ display:flex; flex-wrap:wrap; gap:7px; justify-content:center; margin:22px 0 8px; }
+.chips-preview span{ font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--ash); border:1px solid var(--line); padding:4px 9px; border-radius:2px; }
+.disclaimer{ font-size:11.5px; color:var(--ash); text-align:center; margin-top:18px; line-height:1.55; }
+.btn-primary{
+  display:block; margin:24px auto 0; background:linear-gradient(180deg, var(--blood-bright), var(--blood));
+  color:var(--bone); border:none; font-family:'Cinzel', serif; font-weight:600; font-size:14px;
+  letter-spacing:0.06em; text-transform:uppercase; padding:14px 34px; border-radius:2px; cursor:pointer;
+  transition:transform .15s ease, opacity .15s ease; box-shadow:0 8px 20px -8px rgba(161,64,46,0.6);
+}
+.btn-primary:hover{ transform:translateY(-1px); }
+.btn-primary:focus-visible, .btn-ghost:focus-visible, .opt:focus-visible, .chip:focus-visible{ outline:2px solid var(--sand-bright); outline-offset:3px; }
+.btn-ghost{
+  display:block; margin:16px auto 0; background:transparent; color:var(--sand-dim); border:1px solid var(--line);
+  font-family:'JetBrains Mono', monospace; font-size:12px; padding:10px 20px; border-radius:2px; cursor:pointer;
+  transition:border-color .15s ease, color .15s ease;
+}
+.btn-ghost:hover{ border-color:var(--sand-dim); color:var(--sand-bright); }
+.progress-wrap{ margin-bottom:24px; }
+.progress-meta{ display:flex; justify-content:space-between; font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--ash); margin-bottom:8px; gap:10px; }
+.progress-meta b{ color:var(--sand); font-weight:500; }
+.sec-tag{ color:var(--sand-dim); text-transform:uppercase; letter-spacing:0.1em; }
+.progress-track{ height:3px; background:var(--obsidian); border:1px solid var(--line); border-radius:2px; overflow:hidden; }
+.progress-fill{ height:100%; background:linear-gradient(90deg, var(--blood), var(--sand)); transition:width .35s ease; }
+.q-text{ font-size:18px; line-height:1.45; color:var(--bone); margin-bottom:8px; font-weight:500; }
+.q-hint{ font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--sand-dim); letter-spacing:0.05em; margin-bottom:6px; line-height:1.5; }
+.options{ display:flex; flex-direction:column; gap:10px; margin-top:14px; }
+.opt{
+  text-align:left; background:var(--obsidian); border:1px solid var(--line); color:var(--bone-dim);
+  font-family:'Work Sans', sans-serif; font-size:14.5px; line-height:1.45; padding:13px 16px; border-radius:2px;
+  cursor:pointer; transition:border-color .15s ease, background .15s ease, color .15s ease;
+}
+.opt:hover{ border-color:var(--sand-dim); color:var(--bone); background:var(--obsidian-3); }
+.opt.sel{ border-color:var(--sand); color:var(--bone); background:rgba(201,166,104,0.12); }
+.opt .mark{ font-family:'JetBrains Mono', monospace; color:var(--sand-dim); margin-right:10px; font-size:12px; }
+.opt.sel .mark{ color:var(--sand-bright); }
+.opt.ign{ border-style:dashed; }
+.chips{ display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+.chip{
+  background:var(--obsidian); border:1px solid var(--line); color:var(--bone-dim); font-family:'Work Sans', sans-serif;
+  font-size:13px; padding:8px 12px; border-radius:2px; cursor:pointer;
+}
+.chip:hover{ border-color:var(--sand-dim); }
+.chip.sel{ border-color:var(--arcane); color:var(--bone); background:rgba(74,155,146,0.2); }
+.chip.sel.neg{ border-color:var(--blood-bright); background:rgba(161,64,46,0.22); }
+.q-footer{ display:flex; justify-content:space-between; align-items:center; margin-top:18px; gap:10px; }
+.q-footer .btn-ghost, .q-footer .btn-primary{ margin:0; }
+.q-footer .btn-primary{ padding:11px 24px; font-size:12.5px; }
+.btn-primary[disabled]{ opacity:0.35; cursor:not-allowed; transform:none; }
+.verdict-kicker{ text-align:center; font-family:'JetBrains Mono', monospace; font-size:11px; letter-spacing:0.24em; text-transform:uppercase; color:var(--blood-bright); margin-bottom:10px; }
+.verdict-box{ border:1px solid var(--sand); border-radius:2px; padding:26px 22px; text-align:center; background:linear-gradient(180deg, rgba(201,166,104,0.1), rgba(161,64,46,0.04)); }
+.verdict-class{ font-size:32px; color:var(--sand-bright); line-height:1.15; }
+.verdict-path{ font-family:'JetBrains Mono', monospace; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:var(--arcane); margin-top:10px; }
+.verdict-margin{ font-size:12.5px; color:var(--bone-dim); margin-top:10px; line-height:1.55; }
+.section-label{ font-family:'JetBrains Mono', monospace; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--ash); margin-bottom:14px; }
+.divider{ border:none; height:1px; background:linear-gradient(90deg, transparent, var(--line), transparent); margin:24px 0; }
+.legend{ display:flex; gap:16px; font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--ash); margin-bottom:10px; flex-wrap:wrap; }
+.legend i{ display:inline-block; width:10px; height:6px; margin-right:5px; border-radius:1px; vertical-align:middle; }
+.phase-row{ margin-bottom:11px; }
+.phase-name{ font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--bone-dim); margin-bottom:4px; }
+.bar-track{ height:6px; background:var(--obsidian); border:1px solid var(--line); border-radius:1px; overflow:hidden; margin-bottom:3px; }
+.bar-fill{ height:100%; }
+.bar-fill.you{ background:linear-gradient(90deg, var(--blood), var(--sand)); }
+.bar-fill.cls{ background:var(--arcane); opacity:0.85; }
+.bar-fill.mid{ background:var(--sand-dim); }
+.rank-row{ padding:9px 0; border-bottom:1px solid var(--line); font-size:13.5px; color:var(--bone-dim); }
+.rank-top{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+.rank-row b{ color:var(--sand-bright); font-weight:600; font-family:'Cinzel', serif; }
+.rank-row span.pc{ font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--sand-dim); text-align:right; }
+.rank-tiers{ font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--ash); margin-top:3px; }
+.gauge{ height:10px; background:var(--obsidian); border:1px solid var(--line); border-radius:5px; position:relative; overflow:hidden; }
+.gauge-fill{ position:absolute; top:0; bottom:0; left:0; background:linear-gradient(90deg, var(--blood-bright), var(--sand-bright)); border-radius:5px; }
+.gauge.off .gauge-fill{ background:var(--ash); opacity:0.35; }
+.gauge-labels{ display:flex; justify-content:space-between; font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--ash); margin:5px 0 14px; }
+.class-card{ border:1px solid var(--sand-dim); background:linear-gradient(180deg, rgba(201,166,104,0.06), transparent); border-radius:2px; padding:18px; }
+.class-card p{ color:var(--bone-dim); font-size:13.5px; line-height:1.6; margin:0; }
+.path-box{ border:1px solid var(--line); border-radius:2px; padding:16px; margin-top:12px; background:rgba(74,155,146,0.04); }
+.path-box .ph{ font-family:'JetBrains Mono', monospace; font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--arcane); margin-bottom:8px; }
+.path-box p{ color:var(--bone-dim); font-size:13.5px; line-height:1.65; margin:4px 0; }
+.path-box b{ color:var(--sand-bright); font-weight:600; }
+.meta-box{ border:1px solid var(--line); border-radius:2px; padding:16px; margin-top:12px; }
+.meta-box .mh{ font-family:'JetBrains Mono', monospace; font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--sand-dim); margin-bottom:8px; }
+.meta-box p{ color:var(--bone-dim); font-size:13px; line-height:1.6; margin:4px 0; }
+.meta-box b.hl{ color:var(--sand-bright); }
+.callout{ border-left:2px solid var(--blood); padding:4px 0 4px 16px; margin:14px 0; color:var(--bone-dim); font-size:13.5px; line-height:1.65; }
+.callout.arcane{ border-left-color:var(--arcane); }
+.trow{ margin-bottom:4px; display:block; } .trow .gauge-labels{ margin:3px 0 12px; } .trow-name{ font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--bone-dim); margin-bottom:5px; display:flex; justify-content:space-between; gap:8px; } .pattern-box{ border:1px solid var(--sand-dim); background:linear-gradient(180deg, rgba(201,166,104,0.06), transparent); border-radius:2px; padding:16px; margin-bottom:16px; } .pattern-box h3{ font-size:17px; color:var(--sand-bright); margin-bottom:6px; } .pattern-box p{ color:var(--bone-dim); font-size:13.5px; line-height:1.6; margin:4px 0; } .stab-big{ font-family:'Cinzel', serif; font-size:22px; color:var(--sand-bright); }
+.footer-actions{ display:flex; justify-content:center; margin-top:28px; }
+@media (max-width:480px){ .card{ padding:28px 20px; } .intro h1{ font-size:20px; } .verdict-class{ font-size:26px; } }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="compass">
+    <svg viewBox="0 0 100 100">
+      <g class="compass-ring">
+        <circle cx="50" cy="50" r="44" fill="none" stroke="#8a7449" stroke-width="0.6" opacity="0.5"/>
+        <circle cx="50" cy="50" r="34" fill="none" stroke="#a1402e" stroke-width="0.6" opacity="0.4"/>
+        <g stroke="#c9a668" stroke-width="1" opacity="0.8">
+          <line x1="50" y1="4" x2="50" y2="12"/><line x1="50" y1="96" x2="50" y2="88"/>
+          <line x1="4" y1="50" x2="12" y2="50"/><line x1="96" y1="50" x2="88" y2="50"/>
+          <line x1="18.5" y1="18.5" x2="24" y2="24"/><line x1="81.5" y1="18.5" x2="76" y2="24"/>
+          <line x1="18.5" y1="81.5" x2="24" y2="76"/><line x1="81.5" y1="81.5" x2="76" y2="76"/>
+        </g>
+      </g>
+      <circle cx="50" cy="50" r="4" fill="#c9a668"/>
+    </svg>
+  </div>
+  <div class="card" id="app"></div>
+</div>
+
+<script>
+(function(){
+
+  var PHASES = ["RAS","PRE","ENT","EJE","SOB","PER"];
+  var PHASE_LABELS = { RAS:"Rastrear e ler", PRE:"Preparar", ENT:"Entrar", EJE:"Executar", SOB:"Sobreviver", PER:"Perseguir e voltar a caçar" };
+  var ARCH = ["MT","BR","MA","AS","RG","GN","MB","MC","SP","SM","TR"];
+  var ARCH_LABELS = { MT:"Vanguardia", BR:"Golpe sostenido", MA:"Duelo ágil", AS:"Furtividade letal", RG:"Arco / besta", GN:"Gatillo", MB:"Fúria arcana", MC:"Controle arcano", SP:"Suporte", SM:"Companheiro", TR:"Ilusão" };
+  var SOFT = ["rng","eleg","cx","team","prot","eva","cc","mov","grab","spd","brst"];
+  var TRAITS = ["ini","pat","ris","plan","res"];
+  var W = { ph:0.22, ar:0.22, rng:0.10, eleg:0.08, cx:0.10, team:0.05, prot:0.06, eva:0.06, cc:0.06, mov:0.06, grab:0.05, spd:0.05, brst:0.06, hist:0.16 };
+
+  // ===== CLASSES (32 classes, 28 perfis: 4 pares compartilham kit) =====
+  // ph = [Rastrear, Preparar, Entrar, Ejecutar, Sobrevivir, Perseguir] 0-3 | arch = afinidades 0-3 | range -2 cuerpo a cuerpo .. +2 distancia | eleg -2 brutal .. +2 elegante | diff 1-3 | team 0-2
+  // prot = protección al atacar | eva = esquiva con invulnerabilidad | cc = control (aturdir, derribar, agarrar) | mov = posicionamiento (0 terrestre simple .. 2 aérea/teletransporte) | grab = agarre (0 no tiene .. 2 rápido y central) | spd = ritmo (0 lento .. 2 rápido) | brst = daño (-2 sostenido .. +2 burst). null = sin dato (no puntúa).
+  // path: dual | asc (tipo Ascensión) | talent (Shai) | agent (Sucessão hoje, Despertar no inverno 2026)
+  // TODOS los números son estimaciones del autor del test; las descripciones de Lahn, Musa, Archer, Ranger, Shai, Wizard, Corsair, Maegu, Warrior, Guardian, Sorceress, Hashashin y Dark Knight vienen de lo que aportó el propio autor.
+  var CLASSES = [
+    {"id":"warrior","names":["Warrior"],"genders":["M"],"ph":[1,1,3,2,3,2],"arch":{"BR":3,"MT":2,"SP":1},"range":-2,"eleg":0,"diff":2,"team":2,"path":"dual","prot":2,"eva":null,"cc":null,"mov":null,"grab":1,"spd":2,"brst":0,"fantasy":"Sucessão: guerreiro de primeira linha que faz de guarda-costas dos aliados, com dano decente, boa resistência, um agarre e mais agilidade do que parece. Despertar: bruiser ofensivo que aguenta menos e espera oportunidades, com agarre, boa área e sustain, e muito rápido.","awk":"passa a um montante colossal como bruiser ofensivo: aguenta menos, espera oportunidades, com agarre, boa área e muita velocidade.","succ":"guarda-costas de primeira linha: dano decente, boa resistência, um agarre e mais ágil do que parece (segundo um guia, um grind bem mais relaxado que o Despertar)."},
+    {"id":"ranger","names":["Ranger"],"genders":["F"],"ph":[3,2,2,2,1,3],"arch":{"RG":3,"AS":1,"MA":1},"range":0.5,"eleg":1,"diff":2,"team":0,"path":"dual","prot":0,"eva":null,"cc":2,"mov":null,"grab":2,"spd":null,"brst":-2,"fantasy":"Sucessão: arqueira de dano constante brutal (não de burst), pouco protegida e com ótimo kite. Despertar: assassina corpo a corpo com duas adagas e um dos agarres mais rápidos do jogo; seu pré-despertar permite abrir com o arco à distância, controlar e se aproximar para rematar.","awk":"passa a corpo a corpo como assassina com duas adagas e um dos agarres mais rápidos do jogo (junto com Tamer).","succ":"dano constante brutal mais que burst, com ótimo kite mas pouco protegida."},
+    {"id":"sorceress","names":["Sorceress"],"genders":["F"],"ph":[2,1,2,2,3,1],"arch":{"MB":2,"AS":2,"MA":2},"range":-1,"eleg":0,"diff":3,"team":0,"path":"dual","prot":null,"eva":2,"cc":null,"mov":null,"grab":0,"spd":null,"brst":-1,"fantasy":"assassina de disrupção que busca oportunidades e joga no desgaste: muito protegida por inúmeros iframes, com excelente movimento num único espaço e ótimo dano, sem agarre em nenhuma das duas formas; das mais difíceis, bem perto de Ninja (amuleto e talismã, das 4 classes originais).","awk":"passa à foice: giros e cortes corpo a corpo, alguns ataques à distância e AoE enormes.","succ":"melhora as habilidades do amuleto, com apenas algumas do Despertar."},
+    {"id": "berserker", "names": ["Berserker"], "genders": ["M"], "ph": [0, 1, 3, 3, 3, 2], "arch": {"BR": 3, "MT": 1}, "range": -2, "eleg": -2, "diff": 2, "team": 1, "path": "dual", "prot": 2, "eva": null, "cc": 2, "mov": null, "grab": 2, "spd": 2, "brst": 2, "fantasy": "bomber com mobilidade ampla e dois agarres: um bruiser com sustain, machados gigantes e HP altíssimo.", "awk": "muda de arma e de ritmo, com dano de área devastador.", "succ": "aperfeiçoa seus machados duplos: mais rápido e agressivo."},
+    {"id":"tamer","names":["Tamer"],"genders":["F"],"ph":[1,1,3,2,2,3],"arch":{"SM":3,"BR":1,"MA":1},"range":-1,"eleg":0,"diff":3,"team":0,"path":"dual","prot":null,"eva":null,"cc":2,"mov":null,"grab":2,"spd":null,"brst":null,"fantasy":"luta ao lado de Heilang, sua besta: muito controle de multidões e movimento.","awk":"se funde com Heilang em combos letais com uma arma distinta.","succ":"aperfeiçoa suas garras: controle de multidões ainda mais brutal."},
+    {"id":"musa","names":["Musa","Maehwa"],"genders":["M","F"],"ph":[2,1,1,3,1,2],"arch":{"MA":3,"AS":1},"range":-1,"eleg":2,"diff":2,"team":0,"path":"dual","prot":0,"eva":null,"cc":null,"mov":0,"grab":null,"spd":2,"brst":1,"fantasy":"disruptor terrestre de mobilidade simples (clique direito + W ou a direção que quiser), com muito dano para rematar e poucos CC protegidos; espera oportunidades mais do que impor o ritmo (Musa e Maehwa compartilham kit).","awk":"golpes mais pesados e mais dano sustentado graças às projeções de suas habilidades, com mais dano em área.","succ":"mais rápida e com habilidades que consomem stamina; burst bem mais forte mas menos dano em área e menos proteção: reativa, espera oportunidades e hostiliza alvos fracos."},
+    {"id":"valkyrie","names":["Valkyrie"],"genders":["F"],"ph":[1,1,2,1,3,1],"arch":{"MT":3,"SP":2},"range":-2,"eleg":1,"diff":2,"team":2,"path":"dual","prot":2,"eva":null,"cc":null,"mov":null,"grab":null,"spd":null,"brst":null,"fantasy":"paladina defensiva com escudo e cura, e Área Protegida (reduz 50% do dano recebido durante 8 s nela e nos aliados): presença sólida na linha.","awk":"muda para uma arma de haste com mais alcance e punição.","succ":"aperfeiçoa espada e escudo, com a defesa como marca."},
+    {"id":"ninja","names":["Ninja","Kunoichi"],"genders":["M","F"],"ph":[3,1,3,3,1,2],"arch":{"AS":3,"MA":2},"range":-1,"eleg":1,"diff":3,"team":0,"path":"dual","prot":null,"eva":null,"cc":null,"mov":null,"grab":null,"spd":null,"brst":null,"fantasy":"sombra de kunai e shuriken: lê, entra sem ser visto e remata (Ninja e Kunoichi compartilham kit).","awk":"muda para uma arma sombria de maior alcance, sacrificando algo de furtividade por poder.","succ":"aperfeiçoa kunai e shuriken: furtividade e velocidade no máximo."},
+    {"id":"wizard","names":["Wizard","Witch"],"genders":["M","F"],"ph":[1,3,1,2,2,1],"arch":{"MC":2,"MB":3,"SP":1},"range":1,"eleg":1,"diff":1,"team":2,"path":"dual","prot":2,"eva":null,"cc":2,"mov":1,"grab":1,"spd":null,"brst":1,"fantasy":"burst mágico com cura para ele e os aliados e Área Protegida (reduz 50% do dano recebido durante 8 s nele e no grupo); utilitário, com dano a média e longa distância na Sucessão, e mais corpo a corpo com um agarre no Despertar (Wizard e Witch compartilham kit).","awk":"é um pouco mais corpo a corpo e de média distância, com um agarre e menos mobilidade.","succ":"mais mobilidade (teletransporte dividido), dano a longa e média distância e mais CC."},
+    {"id":"darkknight","names":["Dark Knight"],"genders":["F"],"ph":[2,1,2,3,1,2],"arch":{"AS":3,"MB":3,"MA":2},"range":-0.5,"eleg":0,"diff":2,"team":0,"path":"dual","prot":null,"eva":2,"cc":null,"mov":2,"grab":null,"spd":null,"brst":2,"fantasy":"assassino mágico: na Sucessão é corpo a corpo e busca separar os inimigos para atraí-los e assassiná-los um a um, com dano absurdo, bons iframes e teletransporte pelas costas; excelente duelista e menos protegida. No Despertar luta mais a média distância, invocando e lançando espadas.","awk":"luta mais a média distância invocando e lançando espadas, com excelente dano em área e bem protegida; continua frágil e é mais de lutar de frente.","succ":"corpo a corpo: separa inimigos para atraí-los e assassiná-los um a um, com dano absurdo, bons iframes e teletransporte pelas costas; menos protegida."},
+    {"id": "striker", "names": ["Striker", "Mystic"], "genders": ["M", "F"], "ph": [1, 1, 3, 3, 3, 2], "arch": {"BR": 3, "MA": 2}, "range": -2, "eleg": 0, "diff": 2, "team": 1, "path": "dual", "prot": null, "eva": null, "cc": 2, "mov": null, "grab": 2, "spd": 2, "brst": 2, "fantasy": "igual ao Berserker em mobilidade ampla e agarres, mas com mais dano em 1v1: artes marciais com sustain (Striker e Mystic compartilham kit).", "awk": "muda de arma; segundo um guia, costuma ser mais confortável em PvE (detalhe da arma sem verificar).", "succ": "melhora as habilidades dos manoplas, com apenas algumas do Despertar."},
+    {"id":"lahn","names":["Lahn"],"genders":["F"],"ph":[1,1,3,2,2,2],"arch":{"MA":3,"TR":2},"range":-1,"eleg":2,"diff":3,"team":0,"path":"dual","prot":2,"eva":null,"cc":2,"mov":2,"grab":1,"spd":null,"brst":null,"fantasy":"disruptora aérea: uma habilidade a faz voar e se posicionar onde só ela chega, e aterra nas fileiras inimigas; de média distância, com pêndulo crescente e espada nobre.","awk":"passa às Glaives Carmesim (duas lâminas com corrente), tem um agarre e fica mais reativa.","succ":"mais simples de jogar e com mais proteções, mas sem agarre."},
+    {"id":"archer","names":["Archer"],"genders":["M"],"ph":[3,2,1,3,2,3],"arch":{"RG":3,"MA":1},"range":2,"eleg":1,"diff":2,"team":0,"path":"asc","prot":2,"eva":null,"cc":null,"mov":null,"grab":null,"spd":null,"brst":2,"fantasy":"classe tipo Ascensão, mais protegida, que se mantém atirando de longe com burst puro nas habilidades e bom kite; alterna besta para entrar com estilo e grande arco para o maior alcance.","note":"classe tipo Ascensão, sem Sucessão: começa com besta e evolui para seu grande arco."},
+    {"id":"shai","names":["Shai"],"genders":["F"],"ph":[2,3,1,1,3,1],"arch":{"SP":3,"MC":1},"range":0,"eleg":1,"diff":1,"team":2,"path":"talent","prot":null,"eva":null,"cc":2,"mov":null,"grab":null,"spd":null,"brst":null,"fantasy":"suporte único do jogo, com Talento como árvore de habilidades: buffs indispensáveis para os aliados em todo o conteúdo de grupo e em PvP (convém ter pelo menos uma), curas sustentadas, muito controle de massas com os tambores e debuffs fortes em evasão, redução de dano e pontaria.","note":"usa Talento como árvore de habilidades em vez de Sucessão (as listas de Garmoth a colocam na categoria Ascensão)."},
+    {"id":"guardian","names":["Guardian"],"genders":["F"],"ph":[1,1,2,2,3,0],"arch":{"MT":3,"BR":3},"range":-1,"eleg":-1,"diff":1,"team":1,"path":"dual","prot":2,"eva":null,"cc":null,"mov":null,"grab":1,"spd":0,"brst":1,"fantasy":"Sucessão: bruiser de sustain em alcance médio-melee, com machado e escudo, excelente sustain e burst rápido embora com mobilidade lenta. Despertar: muito mais lenta mas com excelente sustain e muitíssimo dano em área; ambas com seu próprio agarre: tanques de combate.","awk":"empunha o Jordun: muito mais lenta, com excelente sustain, muitíssimo dano em área e seu próprio agarre.","succ":"machado e escudo: excelente sustain e burst rápido embora com mobilidade lenta, e seu próprio agarre."},
+    {"id":"hashashin","names":["Hashashin"],"genders":["M"],"ph":[2,1,3,3,1,3],"arch":{"AS":3,"MA":2,"BR":1},"range":-1,"eleg":-1,"diff":2.5,"team":0,"path":"dual","prot":null,"eva":null,"cc":null,"mov":2,"grab":1,"spd":2,"brst":2,"fantasy":"assassino reativo-agressivo: rápido, com dano brutal e pouca área na Sucessão, menos protegido nos combos mas capaz de se esconder nos tornados e se teletransportar pelas costas do rival; no Despertar ganha sustain e se aproxima de um bruiser ofensivo, com agarre e bastante protegido; muito bom em 1v1.","awk":"ganha sustain e se aproxima de um bruiser ofensivo, com agarre e bastante proteção.","succ":"rápido, com dano brutal e pouca área, de médio alcance a melee e menos protegido nos combos."},
+    {"id":"nova","names":["Nova"],"genders":["M"],"ph":[1,2,2,2,3,1],"arch":{"SM":2,"MC":2,"MT":1},"range":-1,"eleg":1,"diff":2,"team":1,"path":"dual","prot":null,"eva":null,"cc":2,"mov":null,"grab":null,"spd":null,"brst":null,"fantasy":"cavaleiro com soldados espectrais: controle de zona e muito CC.","awk":"invoca soldados fantasma com uma arma distinta e bloqueia áreas inteiras.","succ":"aperfeiçoa sua maça e escudo: mais ofensiva sem perder seu exército."},
+    {"id":"sage","names":["Sage"],"genders":["M"],"ph":[2,3,2,2,2,3],"arch":{"MC":3,"MB":2,"RG":1},"range":1,"eleg":2,"diff":2,"team":1,"path":"dual","prot":null,"eva":null,"cc":null,"mov":2,"grab":null,"spd":null,"brst":null,"fantasy":"manipula o espaço: pokes à distância, reposicionamento, boa defesa e burst forte.","awk":"muda para o para-raios Kebelinus, que concentra seu dano principal.","succ":"melhora o kyve e soma o controle do tempo ao do espaço."},
+    {"id":"corsair","names":["Corsair"],"genders":["F"],"ph":[1,1,2,2,3,1],"arch":{"BR":3,"MT":1,"SP":1},"range":-0.5,"eleg":1,"diff":2,"team":1,"path":"dual","prot":null,"eva":2,"cc":null,"mov":null,"grab":1,"spd":null,"brst":0,"fantasy":"Sucessão: semi tanque com muitos iframes e sobrevivência alta; sua fúria a 100% a cura e cura os aliados, com dano regular. Despertar: DPS a média distância com um agarre de bom alcance e lontras com canhões que continuam atirando onde apontou; bom sustain, como um bruiser de alcance médio (dados parciais).","awk":"passa a DPS de média distância com um agarre de bom alcance e lontras com canhões (arma Patraca).","succ":"semi tanque com muitos iframes, sobrevivência alta e dano regular."},
+    {"id": "drakania", "names": ["Drakania"], "genders": ["F"], "ph": [1, 1, 3, 3, 2, 2], "arch": {"BR": 3, "AS": 1}, "range": 0, "eleg": -1, "diff": 2, "team": 1, "path": "dual", "prot": 2, "eva": null, "cc": null, "mov": null, "grab": 1, "spd": null, "brst": 1, "fantasy": "Sucessão: bruiser de frontline que aguenta, com superarmadura e sem agarre. Despertar: flanqueadora assassina que aguenta pouco e bate muito, com agarre.", "awk": "passa a flanqueadora assassina: aguenta pouco, bate muito e tem agarre.", "succ": "bruiser de frontline que aguenta bem, com superarmadura e sem agarre."},
+    {"id":"woosa","names":["Woosa"],"genders":["M"],"ph":[1,2,2,3,2,3],"arch":{"MC":2,"MB":2,"TR":1},"range":1,"eleg":2,"diff":3,"team":0,"path":"dual","prot":null,"eva":null,"cc":null,"mov":null,"grab":null,"spd":null,"brst":null,"fantasy":"magia de vento elegante: dano verdadeiro e ritmo constante.","awk":"aperfeiçoa sua magia de vento com um kit despertado de muito dano.","succ":"mantém o kit original, de muito ritmo e dano verdadeiro."},
+    {"id":"maegu","names":["Maegu"],"genders":["F"],"ph":[2,1,3,3,1,3],"arch":{"AS":3,"TR":2,"MA":1},"range":0,"eleg":1,"diff":2,"team":0,"path":"dual","prot":null,"eva":null,"cc":null,"mov":2,"grab":null,"spd":null,"brst":2,"fantasy":"Sucessão: média-longa distância com uma ilusão de si mesma para a qual pode voltar; os rivais atacam o clone e ela se reposiciona, com muito dano e boa área. Despertar: corpo a corpo, assassina de classes de alcance, com teletransporte pelas costas do inimigo dentro de um alcance e dano altíssimo.","awk":"passa a corpo a corpo como assassina de classes de alcance, com teletransporte pelas costas e dano altíssimo.","succ":"média-longa distância com uma ilusão para a qual pode voltar: confunde os rivais e permite se reposicionar."},
+    {"id":"scholar","names":["Scholar"],"genders":["M"],"ph":[1,3,2,1,3,1],"arch":{"MC":2,"MT":2,"SM":1},"range":-1,"eleg":0,"diff":3,"team":1,"path":"asc","prot":null,"eva":null,"cc":2,"mov":null,"grab":null,"spd":null,"brst":null,"fantasy":"alquimista de martelos e núcleos de gravidade: controle de zona e muito CC.","note":"classe tipo Ascensão, sem Sucessão: começa com martelos e núcleos de gravidade e evolui para seu grande martelo."},
+    {"id":"dosa","names":["Dosa"],"genders":["M"],"ph":[1,3,2,1,2,2],"arch":{"BR":2,"TR":2,"MC":1},"range":-1,"eleg":1,"diff":3,"team":0,"path":"dual","prot":null,"eva":null,"cc":2,"mov":null,"grab":null,"spd":null,"brst":null,"fantasy":"artista marcial místico com incenso: controle de multidões e mobilidade flexível.","awk":"o Despertar reforça seu controle com incenso e combos exigentes.","succ":"aperfeiçoa seu kit original de incenso e artes marciais."},
+    {"id":"deadeye","names":["Deadeye"],"genders":["F"],"ph":[1,1,3,2,1,3],"arch":{"GN":3,"RG":1,"AS":1},"range":1,"eleg":0,"diff":2,"team":0,"path":"asc","prot":null,"eva":null,"cc":null,"mov":null,"grab":null,"spd":null,"brst":null,"fantasy":"pistolera forajida: revólveres e escopeta, mais de correr e atirar, às vezes se mergulhando na luta.","note":"classe tipo Ascensão, sem Sucessão: começa com revólveres e escopeta e evolui para sua arma Lil' Devil."},
+    {"id":"wukong","names":["Wukong"],"genders":["M"],"ph":[1,1,3,2,2,3],"arch":{"TR":3,"BR":1,"SM":1},"range":-1,"eleg":0,"diff":3,"team":0,"path":"asc","prot":null,"eva":null,"cc":null,"mov":null,"grab":null,"spd":null,"brst":null,"fantasy":"o Rei Macaco: vara, cabaça e clones para entrar e confundir.","note":"classe tipo Ascensão, sem Sucessão: começa com vara e cabaça e evolui para o Pilar de Jade."},
+    {"id":"seraph","names":["Seraph"],"genders":["F"],"ph":[1,1,2,2,3,1],"arch":{"MC":2,"MT":2,"BR":1},"range":-1,"eleg":1,"diff":2,"team":1,"path":"asc","prot":null,"eva":null,"cc":null,"mov":null,"grab":null,"spd":null,"brst":null,"fantasy":"cavaleira de luz e escuridão com grande espada sagrada: boa resistência, movimento um tanto torpe.","note":"classe tipo Ascensão, sem Sucessão: começa com a espada sagrada Sacramentum e evolui para o Purgatum."},
+    {"id":"agent","names":["Agent"],"genders":["M"],"ph":[3,2,3,3,2,2],"arch":{"GN":3,"AS":2,"MC":1},"range":1,"eleg":1,"diff":3,"team":0,"path":"agent","prot":null,"eva":null,"cc":null,"mov":2,"grab":null,"spd":null,"brst":null,"fantasy":"pistolero-espião de emboscada: espera o momento, entra com Blink, golpeia forte com revólver pesado e Hexround, e sai antes que reajam.","note":"sua Sucessão saiu em 30 de julho de 2026 e seu Despertar está anunciado para o inverno de 2026 (hemisfério norte); não terá caminho de Ascensão."}
+  ];
+  var BYID = {}; CLASSES.forEach(function(c){ BYID[c.id]=c; });
+  var NAME2ID = {}; CLASSES.forEach(function(c){ c.names.forEach(function(n){ NAME2ID[n]=c.id; }); });
+
+  // ===== TIER LISTS (outubro de 2026, fornecidas pelo autor do teste) =====
+  // S=Sucessão, A=Despertar, X=Ascensão. PvE: Garmoth (by Choice, 2/10/2026). PvP: listas aportadas por el autor.
+  var TIER_DATA = {
+    pve: {
+      "S":  {S:["Wizard","Witch","Striker","Sorceress","Mystic","Guardian"], A:["Nova","Drakania","Musa"], X:[]},
+      "A+": {S:["Agent","Dark Knight","Maegu","Kunoichi","Warrior","Berserker"], A:["Ranger","Sage","Guardian","Hashashin","Kunoichi","Mystic","Witch","Wizard","Maegu","Woosa","Lahn"], X:["Deadeye","Wukong","Seraph","Scholar"]},
+      "A":  {S:["Lahn","Dosa","Woosa","Sage","Drakania","Maehwa","Tamer","Hashashin","Musa","Nova"], A:["Dark Knight","Valkyrie","Tamer","Warrior","Corsair","Dosa","Sorceress","Berserker"], X:["Shai"]},
+      "B":  {S:["Valkyrie"], A:["Striker"], X:["Archer"]},
+      "C":  {S:["Ranger","Corsair"], A:["Ninja","Maehwa"], X:[]}
+    },
+    capped: {
+      "S+": {S:["Ranger","Sage","Corsair","Dosa","Guardian"], A:["Striker"], X:["Archer","Shai"]},
+      "S":  {S:["Berserker"], A:["Musa","Dosa","Witch","Hashashin","Wizard"], X:["Deadeye"]},
+      "A":  {S:["Witch","Wizard","Maehwa","Hashashin","Ninja","Maegu","Lahn","Dark Knight","Drakania","Woosa","Valkyrie","Sorceress"], A:["Berserker","Guardian","Drakania","Sorceress","Ninja"], X:["Scholar","Wukong"]},
+      "B":  {S:["Nova","Agent","Warrior","Kunoichi","Musa"], A:["Mystic","Valkyrie","Sage","Dark Knight","Corsair","Kunoichi","Nova","Woosa"], X:["Seraph"]},
+      "C":  {S:[], A:["Warrior","Tamer","Ranger","Lahn"], X:[]},
+      "D":  {S:["Tamer","Striker","Mystic"], A:["Maehwa"], X:[]}
+    },
+    solare: {
+      "S+": {S:["Kunoichi","Ninja","Valkyrie","Wizard","Dark Knight"], A:["Lahn","Tamer","Maegu","Striker","Valkyrie","Ninja","Hashashin","Ranger","Mystic","Kunoichi"], X:["Archer"]},
+      "S":  {S:["Sorceress","Berserker","Mystic","Tamer","Dosa","Hashashin","Nova","Woosa","Striker"], A:["Sage","Woosa","Corsair","Warrior","Sorceress"], X:["Scholar"]},
+      "A":  {S:["Warrior","Corsair","Witch","Musa","Maehwa"], A:["Nova","Witch","Berserker","Wizard","Dark Knight","Maehwa","Musa"], X:["Wukong","Seraph"]},
+      "B":  {S:["Guardian","Lahn"], A:["Drakania","Guardian"], X:["Deadeye"]},
+      "C":  {S:["Sage","Drakania","Ranger"], A:["Dosa","Seraph"], X:[]},
+      "D":  {S:["Agent"], A:[], X:["Shai"]}
+    }
+  };
+  var TS = {"S+":1, "S":0.9, "A+":0.8, "A":0.65, "B":0.45, "C":0.25, "D":0.1};
+  var PATH_NAMES = {S:"Sucessão", A:"Despertar", X:"Ascensão"};
+  var CONTENT_LABELS = {pve:"PvE", capped:"Node War capped T1-T2", solare:"Solare 3v3"};
+  // Construye la tabla y detecta contradicciones de la fuente (misma clase y camino en dos tiers distintos)
+  var T = {}, CONFLICT = {};
+  Object.keys(TIER_DATA).forEach(function(ct){
+    T[ct]={}; CONFLICT[ct]={};
+    Object.keys(TIER_DATA[ct]).forEach(function(tier){
+      ["S","A","X"].forEach(function(pk){
+        TIER_DATA[ct][tier][pk].forEach(function(nm){
+          T[ct][nm] = T[ct][nm] || {};
+          if(T[ct][nm][pk]!==undefined && T[ct][nm][pk]!==tier){
+            CONFLICT[ct][nm] = CONFLICT[ct][nm] || {};
+            CONFLICT[ct][nm][pk] = [T[ct][nm][pk], tier];
+          } else { T[ct][nm][pk] = tier; }
+        });
+      });
+    });
+    Object.keys(CONFLICT[ct]).forEach(function(nm){ Object.keys(CONFLICT[ct][nm]).forEach(function(pk){ delete T[ct][nm][pk]; }); });
+  });
+
+  // ===== PERGUNTAS =====
+  function pair3(sec,q,pa,ta,pb,tb){
+    var ea={},eb={},ec={}; ea[pa]=2; eb[pb]=2; ec[pa]=1; ec[pb]=1;
+    return {type:"single", sec:sec, q:q, opts:[{t:ta,e:ea},{t:tb,e:eb},{t:"As duas por igual",e:ec,ign:true}]};
+  }
+  function soft(sec,q,key,lo,mid,hi){
+    var e0={},e1={},e2={},e3={}; e0[key]=-2; e1[key]=0; e2[key]=2; e3["ig_"+key]=1;
+    return {type:"single", sec:sec, q:q, opts:[{t:lo,e:e0},{t:mid,e:e1},{t:hi,e:e2},{t:"Tanto faz",e:e3,ign:true}]};
+  }
+  function single(sec,q,list){
+    return {type:"single", sec:sec, q:q, opts:list.map(function(x){ return {t:x[0], e:x[1]||{}, ign:!!x[2]}; })};
+  }
+  function multi(sec,q,list,exText){
+    var o = list.map(function(x){ return {t:x[0], e:x[1]||{}}; });
+    o.push({t:exText||"Tanto faz / nenhuma", e:{}, ex:true, ign:true});
+    return {type:"multi", sec:sec, q:q, opts:o};
+  }
+  function chips(sec,q,role,hint){ return {type:"classes", role:role, sec:sec, q:q, hint:hint}; }
+
+  var S1="Ciclo de caça", S2="Pressão e decisões", S3="Papel e identidade", S4="Estilo", S5="Camino", S6="Espejo", S7="Seu histórico", S8="Meta";
+
+  var QUESTIONS = [
+    // --- 1. Ciclo de caza: comparaciones fase contra fase (15) ---
+    pair3(S1,"Você tem um minuto antes de a luta começar. O que faz com ele?","RAS","Observo: conto inimigos e leio para onde vão se mover","PRE","Deixo tudo preparado: minha posição, meus recursos e meu plano de entrada"),
+    pair3(S1,"O que te dá mais prazer numa luta?","ENT","Ser quem quebra a formação e abre o combate","EJE","Ser quem dá o golpe que já não tem resposta"),
+    pair3(S1,"Prefere ser o melhor em…","RAS","Saber o que vai acontecer antes que aconteça","SOB","Continuar de pé quando tudo se complica"),
+    pair3(S1,"Se só pudesse se destacar em uma coisa…","PER","Não deixar ninguém que foge escapar","ENT","Ser o primeiro a se meter"),
+    pair3(S1,"Uma luta sai perfeita quando…","PRE","O terreno estava tão bem armado que o golpe foi um trâmite","EJE","Improvissei o golpe exato com o que havia"),
+    pair3(S1,"Quando a luta se alonga…","SOB","Aguento e mantenho a linha até que mude","PER","Me reposiciono rápido e vou atrás do próximo alvo"),
+    pair3(S1,"Antes de se mover, o que precisa?","ENT","Nada: me movo já e ajusto no caminho","RAS","Ter a informação completa do rival"),
+    pair3(S1,"Prefere…","PRE","Preparar a fundo a primeira luta","PER","Estar sempre pronto para a próxima perseguição"),
+    pair3(S1,"Quando o risco é alto…","SOB","Garantir que possa continuar lutando, mesmo que demore mais","EJE","Terminar rápido, mesmo que me exponha"),
+    pair3(S1,"O que te orgulha mais?","RAS","Ter lido o rival até antecipar seu padrão","EJE","Ter o remate mais limpo da minha guilda"),
+    pair3(S1,"Prefere ser…","PRE","A armadilha que já estava armada","ENT","A entrada que ninguém esperava"),
+    pair3(S1,"Uma caçada termina bem quando…","PER","Segui e voltei a caçar até que não restasse ninguém","EJE","O golpe fechou a luta de uma vez"),
+    pair3(S1,"Chega a uma luta…","SOB","Sem vantagem, mas capaz de aguentar o que vier","PRE","Com vantagem armada, para não ter que aguentar tanto"),
+    pair3(S1,"Caçar é sobretudo…","RAS","Encontrar a presa antes de todo mundo","PER","Alcançá-la quando já corre"),
+    pair3(S1,"No embate inicial prefere ser…","SOB","O último a cair","ENT","O primeiro a entrar"),
+
+    // --- 2. Presión y decisiones: cómo reaccionas, no cómo te describes (10) ---
+    single(S2,"Seu shotcaller pede que você fique 30 segundos sem lutar num flanco enquanto o resto já está lutando. O que faz?",[
+      ["Espero o momento exato sem me mover",{PRE:2,RAS:1,pat:2,ini:-1}],
+      ["Espero, mas entro antes se vir uma janela clara",{RAS:2,ENT:1,pat:1}],
+      ["Me enjoo e entro mesmo assim: prefiro estar na luta",{ENT:2,pat:-2,ini:2}],
+      ["Uso o tempo para me reposicionar e caçar os que passam",{PER:2,RAS:1,ini:1}]]),
+    single(S2,"Ganha um duelo com vantagem e o rival foge com pouca vida. O que faz?",[
+      ["O persigo até rematá-lo, mesmo que me afaste do grupo",{PER:2,ris:1,ini:1}],
+      ["Deixo ir e volto à minha posição",{PRE:1,SOB:1,pat:1,ris:-1}],
+      ["O remato com uma ferramenta à distância, sem perseguir",{EJE:2,GN:1,RG:1}],
+      ["Aproveito que foge para buscar o próximo alvo",{RAS:1,PER:1,ini:1}]]),
+    single(S2,"Te matam três vezes seguidas da mesma forma. O que faz?",[
+      ["Paro, analiso o que aconteceu e mudo algo concreto",{res:2,MC:1,RAS:1}],
+      ["Insisto igual: desta vez sai",{res:-1,BR:1,ris:1}],
+      ["Mudo de abordagem por completo, mesmo que seja estranho",{res:1,TR:2}],
+      ["Me tilto e preciso parar um tempo",{res:-2}]]),
+    single(S2,"Depois de uma luta, o que pesa mais?",[
+      ["Ter entrado demais e ter perdido",{pat:2,ris:-1,ini:-1}],
+      ["Não ter entrado quando podia",{pat:-2,ris:2,ini:2,ENT:1}],
+      ["Ter falhado o remate",{EJE:2}],
+      ["Ter deixado alguém escapar",{PER:2}]]),
+    single(S2,"Um aliado cai a poucos metros com três inimigos em cima. O que faz?",[
+      ["Entro para salvá-lo mesmo que me matem",{team:2,MT:1,SP:1,ris:2}],
+      ["Aproveito que estão distraídos para flanquear",{AS:2,TR:1,team:0,ris:1}],
+      ["Conto quantos são e decido em segundos",{RAS:2,MC:1,team:0}],
+      ["Me retiro e cuido da minha vida",{SOB:2,team:-2,ris:-2}]]),
+    single(S2,"Numa node war, o que prefere?",[
+      ["Um papel atribuído claro, e executá-lo à perfeição",{team:2,plan:2,PRE:1}],
+      ["Um objetivo geral e liberdade total para cumpri-lo",{team:0,plan:-1,ENT:1}],
+      ["Ser quem dá as ordens",{team:2,plan:2,RAS:2,ini:2}],
+      ["Que ninguém me diga o que fazer: vou por conta própria",{team:-2,plan:-2,AS:1,TR:1}]]),
+    single(S2,"Está num 1v3. O que escolhe?",[
+      ["Morrer levando um: vale a pena",{EJE:2,ris:2}],
+      ["Escapar com vida mesmo sem matar ninguém",{SOB:2,ris:-2}],
+      ["Usar o terreno e ganhar tempo até que cheguem aliados",{PRE:2,team:1,pat:1}],
+      ["Escolher o mais fraco e ver o que acontece",{ENT:1,EJE:1,ris:1,ini:1}]]),
+    single(S2,"O que prefere ganhar?",[
+      ["Superioridade de informação: sei mais que meu rival",{RAS:1,PRE:1,plan:1}],
+      ["Superioridade mecânica: executo melhor que meu rival",{EJE:1,ENT:1,plan:-1}],
+      ["As duas por igual",{},true]]),
+    single(S2,"Sua melhor lembrança num videogame é…",[
+      ["Uma jogada planejada que saiu exata",{PRE:2,plan:2}],
+      ["Um clutch improvisado no último segundo",{EJE:1,SOB:1,plan:-2,ris:1}],
+      ["Uma perseguição longa que terminou em kill",{PER:2}],
+      ["Uma luta longa onde aguentei contra tudo",{SOB:2}],
+      ["Uma emboscada perfeita",{RAS:1,ENT:1,AS:1}]]),
+    single(S2,"Quando ganha, o que prefere que digam de você?",[
+      ["Que bem planejou",{plan:2,MC:1}],
+      ["Que bem reagiu",{plan:-2,MA:1}],
+      ["Que brutal foi",{BR:1,MT:1,eleg:-2}],
+      ["Que bonito ficou",{eleg:2}]]),
+
+    // --- 3. Rol e identidad (12) ---
+    single(S3,"Entra numa zona nova cheia de inimigos. O que faz primeiro?",[
+      ["Carrego direto e luto corpo a corpo, aguentando o que vier",{MT:2}],
+      ["Me lanço ao combate e não paro de golpear até que caiam",{BR:2}],
+      ["Busco uma posição afastada e ataco com precisão de longe",{RG:2,GN:1}],
+      ["Preparo feitiços de área e ataco antes que me vejam",{MC:2}],
+      ["Me escondo e golpeio os alvos mais fracos sem que notem",{AS:2}]]),
+    multi(S3,"Como gostaria que fosse sua classe? Escolha tudo o que te atrai.",[
+      ["Um muro que aguenta",{MT:2}],["Um aríete que não para",{BR:2}],["Um duelista escorregadio",{MA:2}],
+      ["Um assassino invisível",{AS:2}],["Um atirador de arco ou besta",{RG:2}],["Um pistolero",{GN:2}],
+      ["Um mago de dano explosivo",{MB:2}],["Um mago de controle de área",{MC:2}],["Um suporte que melhora o time",{SP:2}],
+      ["Alguém com companheiro ou invocações",{SM:2}],["Um embusteiro imprevisível",{TR:2}]],"Tanto faz"),
+    single(S3,"Em videogames em geral, que papel costuma assumir num grupo?",[
+      ["O tanque que absorve o dano",{MT:2}],["O bruiser que se mete no centro do caos e não sai",{BR:2}],
+      ["O franco-atirador que ataca de longe",{RG:2}],["O pistolero rápido e direto",{GN:2}],
+      ["O suporte que cura e protege",{SP:2}],["O que controla o campo para o time avançar",{MC:2}]]),
+    single(S3,"Numa luta longa, o que define melhor seu estilo?",[
+      ["Bloqueio ativamente, esperando o momento de contra-atacar",{MT:2}],
+      ["Quase nunca bloqueio: aguento o dano e continuo golpeando",{BR:2}],
+      ["Esquivo por completo e ataco de ângulos inesperados",{MA:2}],
+      ["Prefiro já ter desaparecido antes que o golpe chegue",{AS:2}]]),
+    single(S3,"Quando embosca um inimigo, o que prefere?",[
+      ["Que me veja chegar e mesmo assim não possa fazer nada: ganhar de frente, com estilo",{MA:2}],
+      ["Que nem note que estive ali até que já seja tarde",{AS:2}],
+      ["Que já estivesse tudo armado antes de chegar",{MC:2}],
+      ["Que meu aliado invocado se encarregue da surpresa",{SM:2}],
+      ["Não me interessa emboscar, prefiro lutar na linha de frente",{MT:1}]]),
+    single(S3,"Que arma te parece mais atraente para lutar à distância?",[
+      ["Um arco ou besta: elegante e tradicional",{RG:2}],["Pistolas ou revólveres: rápidos, diretos, modernos",{GN:2}],
+      ["Nenhuma, prefiro estar perto do inimigo",{MA:1,MT:1}],["Nenhuma, prefiro feitiços que cubram toda a área",{MC:2}]]),
+    single(S3,"Que estética te atrai mais para seu personagem?",[
+      ["Armadura pesada, imponente, marcada por cicatrizes de batalha",{MT:2}],
+      ["Roupas fluidas, movimentos quase de dança",{MA:2}],
+      ["Algo escuro e furtivo, feito para passar despercebido",{AS:2}],
+      ["Túnicas ou símbolos de um poder oculto",{MC:1,MB:2}],
+      ["Um uniforme limpo e moderno, estilo espião ou pistolero",{GN:2}],
+      ["Algo espiritual ou animal, com um aliado ao meu lado",{SM:2}]]),
+    single(S3,"Se seu personagem pudesse lutar ao lado de um pet ou aliado invocado, quão importante seria?",[
+      ["Fundamental, quero um companheiro de batalha ao meu lado",{SM:3}],
+      ["Gostaria, mas não é imprescindível",{SM:1}],
+      ["Prefiro depender só das minhas próprias habilidades",{MA:1,AS:1}],
+      ["Tanto faz",{},true]]),
+    single(S3,"O que te entedia mais num videogame?",[
+      ["A previsibilidade: quero que meus movimentos confundam o rival",{TR:2}],
+      ["A fragilidade: odeio me sentir fraco ou morrer fácil",{MT:1,BR:1}],
+      ["A lentidão: quero resultados e dano imediato",{GN:1,BR:1,MB:1}],
+      ["O caos sem estrutura: prefiro um plano claro",{MC:1}],
+      ["Repetir sempre a mesma coisa",{TR:1}]]),
+    multi(S3,"Que tipo de poder te atrai? Escolha tudo o que quiser.",[
+      ["Aço e força bruta",{MT:1,BR:1}],["Magia sombria",{MB:2}],["Magia arcana ou elemental",{MC:2}],
+      ["Furtividade e sombras",{AS:2}],["Pólvora e tecnologia",{GN:2}],["Espíritos, bestas e invocações",{SM:2}],
+      ["Ilusões e transformações",{TR:2}],["Fé e cura",{SP:2}],["Artes marciais",{BR:1,MA:1}]],"Tanto faz"),
+    single(S3,"Numa node war capped, que posição se imagina?",[
+      ["Abro a luta, na frente, sem medo",{BR:2}],
+      ["Decido o resultado da distância ou com controle de área",{MC:2,RG:1}],
+      ["Me infiltro e elimino alvos-chave",{AS:2,MA:1}],
+      ["Sustento a linha para o resto avançar",{MT:2}],
+      ["Potencio e cubro o grupo",{SP:2}]]),
+    single(S3,"Na Arena de Solare 3v3, o que te atrai mais?",[
+      ["Ganhar meu 1v1 direto",{MA:1,BR:1}],
+      ["Rotar e ajudar meus companheiros a rematar",{SM:1,SP:1}],
+      ["Controlar o ritmo com CC e zoneamento",{MC:2}],
+      ["Entrar para caçar o mais fraco e sair",{AS:1,TR:1}],
+      ["Este formato não me atrai",{},true]]),
+    single(S3,"Se o seu trabalho é desorganizar o inimigo, como prefere fazer isso?",[
+      ["Esperar a oportunidade e punir com muitíssimo dano de remate",{RAS:2,EJE:2,pat:1,ini:-1}],
+      ["Entrar de uma vez no coração da formação e desorganizá-lo",{ENT:2,MA:1,TR:1,ini:2}],
+      ["Hostigar a los objetivos débiles sin comprometerme",{PER:2,AS:1}],
+      ["Controlarlos con agarres y CC para que el equipo remate",{MC:1,SP:1,team:1}]]),
+    single(S3,"Para confundir o rival, que mecanismo prefere?",[
+      ["Desaparecer com furtividade: que ninguém saiba onde estou",{AS:2,RAS:1}],
+      ["Dejar una ilusión o un clon que ataque por mí",{TR:2}],
+      ["Esconderme en un tornado y aparecer a la espalda del rival",{AS:1,MA:1,mov:2}],
+      ["Separar a los enemigos para atraerlos y matarlos de uno en uno",{AS:1,MB:2}],
+      ["Não me interessa confundir: prefiro lutar de frente",{MT:1,BR:1}]]),
+
+    // --- 4. Estilo (11) ---
+    soft(S4,"A que distância sente que domina uma luta?","rng","Colado no rival","A média distância, vendo todo o campo","Longe, com vantagem de ângulo"),
+    soft(S4,"Quando a presa foge, prefere…","rng","Alcançá-la e terminá-la de perto","Cortar-lhe o caminho com ferramentas ou com o terreno","Derrubá-la à distância"),
+    soft(S4,"Sua arma ideal é a que…","rng","Sente nas mãos ao golpear","Deixa escolher: perto quando precisa, longe quando convém","Faz com que nem te alcancem"),
+    soft(S4,"Num 1v1 prefere…","rng","Sentir o embate corpo a corpo","Alternar entre perto e longe conforme o momento","Controlar a distância para que nunca me alcancem"),
+    soft(S4,"Quando dá o golpe final, como prefere que se veja?","eleg","Brutal e cru, que se sinta pesado","Limpo e funcional, sem enfeites","Fluido, quase coreografado"),
+    soft(S4,"Sua forma de se mover em combate é…","eleg","Pesada e contundente","Direta e eficiente","Leve e graciosa, quase uma dança"),
+    soft(S4,"Quando olha para um caçador experiente, vê…","eleg","Um predador que esmaga","Um profissional eficiente","Um artista"),
+    soft(S4,"O sangue e o caos do combate…","eleg","Te encantam: quanto mais cru, melhor","Aceita como parte do trabalho","Prefere que tudo se veja limpo, quase artístico"),
+    soft(S4,"Sua arma ideal se sente melhor quando…","eleg","Esmaga e destroça: pesa de verdade nas suas mãos","Faz seu trabalho sem enfeites","Corta limpo e silva no ar"),
+    soft(S4,"Combos simples ou sequências complexas?","cx","Simples: me foco na estratégia","Intermediário","Complexas: gosto de dominá-las"),
+    soft(S4,"Quanto tempo quer investir em dominar sua classe?","cx","Poucas horas","Um par de meses","Centenas de horas"),
+    soft(S4,"Quão rápidas quer que sejam suas mãos?","cx","Poucas teclas, ritmo tranquilo","Ritmo médio","Muitíssimas ações por segundo"),
+    soft(S4,"O que prefere de uma classe?","cx","Que perdoe meus erros","Equilíbrio entre perdão e exigência","Um teto altíssimo, mesmo que castigue cada falha"),
+    soft(S4,"Quantas habilidades quer gerenciar?","cx","Poucas, as justas","Um número médio","Muitas, com muita profundidade"),
+    soft(S4,"Enquanto aprende uma classe nova, quanto tolera morrer?","cx","Nada: quero render bem desde o primeiro dia","Um pouco, enquanto notar que melhoro","Muito, se o teto da classe valer a pena"),
+    soft(S4,"Quando ataca, o que prefere?","prot","Ir leve e letal, sem proteção: se me tocarem, pago o preço","Algo de proteção nas habilidades-chave","Que nada me interrumpa: superarmadura, guardias o bloqueo mientras golpeo"),
+    soft(S4,"O que te dá mais segurança numa luta?","prot","Que no me vean ni me alcancen","Poder cancelar e me reposicionar quando quiser","Tener la protección incorporada en mis propias habilidades"),
+    soft(S4,"Como prefere sobreviver a um golpe forte?","eva","Aguantándolo con defensa o protección","Con una mezcla, según el caso","Esquivándolo en el último instante con invulnerabilidad"),
+    soft(S4,"Contra vários rivais ao mesmo tempo, prefere…","eva","Plantar-me e aguentar com defesa","Matar rápido antes que me alcancem","Ser quase impossível de pegar, esquivando tudo"),
+    soft(S4,"Que papel quer que os controles (atordoar, derrubar, agarrar) tenham no seu kit?","cc","Tanto faz no tenerlos: prefiero daño y movimiento","Úteis para abrir ou fechar a luta","Centrales: quiero encadenar CC para dominar al rival"),
+    soft(S4,"Um agarre de longo alcance que pega quem foge…","grab","No me interesa","Útil, pero no imprescindible","Me encantaría tenerlo"),
+    soft(S4,"Que papel quer que o agarre tenha no seu kit?","grab","Ninguno: prefiero otras herramientas","Um útil para abrir ou fechar a luta","Rápido e central: enganchar y rematar"),
+    soft(S4,"Se tivesse que escolher entre mais dano ou mais controle…","cc","Mais dano","Equilibrio","Mais controle"),
+    soft(S4,"Como prefere se mover para entrar numa luta?","mov","Por tierra, simple: la dirección y listo","Tierra, con algún salto o dash","Pelo ar ou teletransporte, chegando onde mais ninguém chega"),
+    soft(S4,"Aterrissar no meio da formação inimiga de um lugar inalcançável…","mov","Prefiro lutar do chão com controle do terreno","Útil de vez en cuando","Me encantaría: ser el disruptor que cae donde nadie espera"),
+    soft(S4,"Que ritmo de movimento prefere?","spd","Lento e pesado: cada paso cuenta","Medio","Rápido e ágil, siempre en movimiento"),
+    soft(S4,"Seus golpes ideais são…","spd","Lentos e contundentes","Una mezcla","Combos rápidos y encadenados"),
+    soft(S4,"Como prefere causar dano?","brst","Constante y sostenido, sin parar","Una mezcla","Burst: un golpe enorme y puntual"),
+    soft(S4,"Para ganhar uma luta, prefere…","brst","Desgaste: lutar longo com dano constante","Depende del rival","Burst: matar rápido en una ventana corta"),
+    soft(S4,"Quando sua classe contribui para o time…","team","Prefiro ser autossuficiente e não depender de ninguém","Um pouco dos dois","Adoro potenciar e cobrir os outros"),
+
+    // --- 5. Camino (3) ---
+    single(S5,"Quando pensa em “poder”, com que ideia se identifica mais?",[
+      ["O poder que já tenho dentro de mim, levado à máxima expressão",{pathScore:-1}],
+      ["Um poder alheio, quase emprestado, que transforma por completo o que sou",{pathScore:1}],
+      ["As duas me atraem",{},true],["Tanto faz",{},true]]),
+    single(S5,"Prefere lutar com uma arma que domina à perfeição, ou mudar de arma no meio do combate?",[
+      ["Aperfeiçoar uma única arma",{pathScore:-1}],["Mudar de arma em pleno combate conforme o momento pedir",{pathScore:1}],["Tanto faz",{},true]]),
+    single(S5,"Ao chegar ao nível 56 e poder evoluir sua classe, prefere…",[
+      ["Polir o que já sei fazer",{pathScore:-1}],["Aprender um estilo totalmente novo",{pathScore:1}],["Tanto faz",{},true]]),
+
+    // --- 6. Espejo (4) ---
+    single(S6,"Na vida real, diante de uma decisão importante com risco, com que frequência se arrisca sem pensar demais?",[
+      ["Quase nunca, penso tudo",{irlRisk:0}],["Às vezes, depende",{irlRisk:1}],["Frequentemente, confio no meu instinto",{irlRisk:2}]]),
+    single(S6,"Em situações sociais da vida real, quão à vontade se sente tomando a iniciativa?",[
+      ["Prefiro ficar em segundo plano",{irlRisk:0}],["Depende do grupo",{irlRisk:1}],["Costumo tomar a iniciativa sem problema",{irlRisk:2}]]),
+    single(S6,"Quando joga, com que frequência se lança a uma luta sem saber se vai ganhar?",[
+      ["Quase nunca, calculo antes",{gameRisk:0}],["Às vezes, se o desafio valer a pena",{gameRisk:1}],["Quase sempre, prefiro a adrenalina de não saber",{gameRisk:2}]]),
+    single(S6,"Quando o jogo oferece um atalho arriscado…",[
+      ["Evito",{gameRisk:0}],["Penso e decido conforme o prêmio",{gameRisk:1}],["Quase sempre tento, mesmo que morra",{gameRisk:2}]]),
+
+    // --- 7. Tu historial: tres preguntas distintas con la misma modalidad + una de control ---
+    {type:"gender", sec:S7, q:"Que personagens quer considerar?", opts:[
+      {t:"Só personagens masculinos",g:"M"},{t:"Só personagens femininos",g:"F"},{t:"Tanto faz, todos",g:null,ign:true}]},
+    chips(S7,"Classes que joga ou jogou muito e cuja JOGABILIDADE te agradou","liked","Não são descartadas: servem para aprender que estilo de jogo te combina. Opcional."),
+    chips(S7,"Classes que testou e cuja JOGABILIDADE não te agradou","disliked","O teste se afasta desse estilo de jogo, mesmo que a classe te agrade por fora. Opcional."),
+    chips(S7,"Classes que descarta por outros motivos, independentemente do resultado","excluded","Estética, tema, o personagem… Estas somem do resultado, não influenciam seu estilo. Opcional."),
+    {type:"keep", sec:S7, q:"Pode sair no resultado uma classe que você já joga?", opts:[
+      {t:"Sim, que dispute normalmente",k:true},{t:"Não, quero algo novo",k:false},{t:"Tanto faz",k:null,ign:true}]},
+
+    // --- 8. Meta ---
+    single(S8,"Quanto importa o meta (tier lists de outubro de 2026) ao escolher classe?",[
+      ["Nada: me importa a identidade",{metaImp:0}],["Um pouco, como desempate",{metaImp:1}],["Muito",{metaImp:2}],["Tanto faz",{metaImp:0},true]]),
+    multi(S8,"Que conteúdo joga mais? (o uncapped não entra: aí o Gearscore pesa mais que o meta)",[
+      ["PvE, grind",{cf_pve:1}],["Node War capped T1-T2",{cf_capped:1}],["Arena de Solare 3v3",{cf_solare:1}]],"Nenhum em particular")
+  ];
+
+  // ===== Estado =====
+  function freshFilters(){ return {gender:null, liked:[], disliked:[], excluded:[], keepPlayed:null}; }
+  var state = { idx:0, records:new Array(QUESTIONS.length), filters:freshFilters(), _gi:undefined, _ki:undefined };
+  var app = document.getElementById('app');
+
+  // ===== Núcleo de cálculo =====
+  function zeroAgg(){
+    var a = {v:{}, sum:{}, n:{}, ig:{}, tr:{}, path:0, irl:{sum:0,n:0}, game:{sum:0,n:0}, metaImp:0, cf:{}};
+    PHASES.concat(ARCH).forEach(function(k){ a.v[k]=0; });
+    SOFT.forEach(function(k){ a.sum[k]=0; a.n[k]=0; a.ig[k]=0; });
+    TRAITS.forEach(function(k){ a.tr[k]={sum:0,n:0}; });
+    return a;
+  }
+  function aggregate(records, drop){
+    var a = zeroAgg();
+    for(var qi=0; qi<QUESTIONS.length; qi++){
+      var q = QUESTIONS[qi], picks = records[qi];
+      if(!picks || (q.type!=="single" && q.type!=="multi")) continue;
+      if(drop && drop[qi]) continue;
+      picks.forEach(function(pi){
+        var e = q.opts[pi].e || {};
+        for(var k in e){
+          var val = e[k];
+          if(k in a.v){ a.v[k]+=val; }
+          else if(SOFT.indexOf(k)>=0){ a.sum[k]+=val; a.n[k]++; }
+          else if(TRAITS.indexOf(k)>=0){ a.tr[k].sum+=val; a.tr[k].n++; }
+          else if(k.indexOf("ig_")===0){ a.ig[k.slice(3)]++; }
+          else if(k==="pathScore"){ a.path+=val; }
+          else if(k==="irlRisk"){ a.irl.sum+=val; a.irl.n++; }
+          else if(k==="gameRisk"){ a.game.sum+=val; a.game.n++; }
+          else if(k==="metaImp"){ a.metaImp=val; }
+          else if(k.indexOf("cf_")===0){ a.cf[k]=1; }
+        }
+      });
+    }
+    return a;
+  }
+  function pearson(a,b){
+    var n=a.length, ma=0, mb=0, i;
+    for(i=0;i<n;i++){ ma+=a[i]; mb+=b[i]; }
+    ma/=n; mb/=n;
+    var num=0, da=0, db=0;
+    for(i=0;i<n;i++){ num+=(a[i]-ma)*(b[i]-mb); da+=(a[i]-ma)*(a[i]-ma); db+=(b[i]-mb)*(b[i]-mb); }
+    if(da===0 || db===0) return 0;
+    return num/Math.sqrt(da*db);
+  }
+  function softInfo(a,k){
+    var tot = a.n[k]+a.ig[k];
+    return { w: tot>0 ? a.n[k]/tot : 0, mean: a.n[k]>0 ? a.sum[k]/a.n[k] : 0, ign: a.ig[k], n:a.n[k] };
+  }
+  function archVec(c){ return ARCH.map(function(k){ return c.arch[k]||0; }); }
+  function classSim(c1,c2){
+    var p = (pearson(c1.ph,c2.ph)+1)/2, ar = (pearson(archVec(c1),archVec(c2))+1)/2;
+    return 0.30*p + 0.30*ar + 0.15*(1-Math.abs(c1.range-c2.range)/4) + 0.10*(1-Math.abs(c1.eleg-c2.eleg)/4) + 0.15*(1-Math.abs(c1.diff-c2.diff)/2);
+  }
+  var SIM = {}; CLASSES.forEach(function(c1){ SIM[c1.id]={}; CLASSES.forEach(function(c2){ SIM[c1.id][c2.id]=classSim(c1,c2); }); });
+  function idsOf(names){ var out=[]; names.forEach(function(n){ var id=NAME2ID[n]; if(id && out.indexOf(id)<0) out.push(id); }); return out; }
+  function mean(xs){ return xs.reduce(function(s,x){return s+x;},0)/xs.length; }
+
+  function allowedNames(c, filters){
+    var out=[];
+    c.names.forEach(function(nm,i){
+      if(filters.gender && c.genders[i]!==filters.gender) return;
+      if(filters.excluded.indexOf(nm)>=0) return;
+      out.push(nm);
+    });
+    return out;
+  }
+  function contentList(a){
+    var l = []; ["pve","capped","solare"].forEach(function(ct){ if(a.cf["cf_"+ct]) l.push(ct); });
+    return l.length ? l : ["pve","capped","solare"];
+  }
+  function prefPathKey(c, a){
+    if(c.path==="asc" || c.path==="talent") return "X";
+    if(c.path==="agent") return "S";
+    return a.path>=1 ? "A" : (a.path<=-1 ? "S" : null);
+  }
+  function nameMeta(name, c, a, contents){
+    var pk = prefPathKey(c,a), vals=[];
+    contents.forEach(function(ct){
+      var t = T[ct] && T[ct][name]; if(!t) return;
+      var best=-1; Object.keys(t).forEach(function(k){ best=Math.max(best, TS[t[k]]); });
+      if(best<0) return;
+      vals.push((pk && t[pk]!==undefined) ? TS[t[pk]] : best);
+    });
+    return vals.length ? mean(vals) : null;
+  }
+
+  function rank(a, filters){
+    var U = PHASES.map(function(k){ return a.v[k]; });
+    var A = ARCH.map(function(k){ return a.v[k]; });
+    var rg=softInfo(a,"rng"), el=softInfo(a,"eleg"), cxI=softInfo(a,"cx"), tm=softInfo(a,"team"), pr=softInfo(a,"prot"), ev=softInfo(a,"eva"), ccI=softInfo(a,"cc"), mv=softInfo(a,"mov"), gr=softInfo(a,"grab"), sp=softInfo(a,"spd"), br=softInfo(a,"brst");
+    var L = 2 + cxI.mean/2, contents = contentList(a);
+    var liked = idsOf(filters.liked), dis = idsOf(filters.disliked), hasH = liked.length>0 || dis.length>0;
+    var Wm = a.metaImp>=2 ? 0.30 : (a.metaImp===1 ? 0.12 : 0);
+    var cands=[];
+    CLASSES.forEach(function(c){
+      var names = allowedNames(c, filters);
+      if(!names.length) return;
+      if(filters.keepPlayed===false && liked.indexOf(c.id)>=0) return;
+      var f = {
+        fase: (pearson(U,c.ph)+1)/2,
+        rol: (pearson(A,archVec(c))+1)/2,
+        distancia: 1 - Math.abs(rg.mean - c.range)/4,
+        elegancia: 1 - Math.abs(el.mean - c.eleg)/4,
+        dificultad: Math.max(0, 1 - (Math.max(0,c.diff-L)*0.5 + Math.max(0,L-c.diff)*0.25)),
+        equipo: 1 - Math.abs(tm.mean - (c.team-1)*2)/4,
+        proteccion: c.prot===null ? 0.5 : 1 - Math.abs(pr.mean - (c.prot-1)*2)/4,
+        esquiva: c.eva===null ? 0.5 : 1 - Math.abs(ev.mean - (c.eva-1)*2)/4,
+        control: c.cc===null ? 0.5 : 1 - Math.abs(ccI.mean - (c.cc-1)*2)/4,
+        movilidad: c.mov===null ? 0.5 : 1 - Math.abs(mv.mean - (c.mov-1)*2)/4,
+        agarre: c.grab===null ? 0.5 : 1 - Math.abs(gr.mean - (c.grab-1)*2)/4,
+        ritmo: c.spd===null ? 0.5 : 1 - Math.abs(sp.mean - (c.spd-1)*2)/4,
+        dano: c.brst===null ? 0.5 : 1 - Math.abs(br.mean - c.brst)/4
+      };
+      var raw=null;
+      if(hasH){
+        var sl = liked.length ? mean(liked.map(function(id){ return SIM[c.id][id]; })) : null;
+        var sd = dis.length ? mean(dis.map(function(id){ return SIM[c.id][id]; })) : null;
+        raw = (sl!==null && sd!==null) ? (sl+(1-sd))/2 : (sl!==null ? sl : 1-sd);
+      }
+      var meta=null;
+      if(Wm>0){ var ms=[]; names.forEach(function(nm){ var m=nameMeta(nm,c,a,contents); if(m!==null) ms.push(m); }); meta = ms.length ? Math.max.apply(null,ms) : 0.5; }
+      cands.push({c:c, names:names, f:f, raw:raw, meta:meta});
+    });
+    if(hasH && cands.length){
+      var mn=Math.min.apply(null,cands.map(function(x){return x.raw;})), mx=Math.max.apply(null,cands.map(function(x){return x.raw;}));
+      cands.forEach(function(x){ x.f.historial = mx>mn ? (x.raw-mn)/(mx-mn) : 0.5; });
+    }
+    cands.forEach(function(x){
+      var parts = [["ciclo de caça",W.ph,x.f.fase],["papel",W.ar,x.f.rol],["distância",W.rng*rg.w,x.f.distancia],["elegância",W.eleg*el.w,x.f.elegancia],["dificuldade",W.cx*cxI.w,x.f.dificultad],["equipe",W.team*tm.w,x.f.equipo],["proteção",W.prot*pr.w,x.f.proteccion],["esquiva",W.eva*ev.w,x.f.esquiva],["control (CC)",W.cc*ccI.w,x.f.control],["mobilidade",W.mov*mv.w,x.f.movilidad],["agarre",W.grab*gr.w,x.f.agarre],["ritmo",W.spd*sp.w,x.f.ritmo],["tipo de daño",W.brst*br.w,x.f.dano]];
+      if(hasH) parts.push(["seu histórico",W.hist,x.f.historial]);
+      if(Wm>0) parts.push(["meta",Wm,x.meta]);
+      var tw=0, ts=0; parts.forEach(function(p){ tw+=p[1]; ts+=p[1]*p[2]; });
+      x.parts=parts; x.tw=tw; x.match = tw>0 ? ts/tw : 0;
+    });
+    cands.sort(function(x,y){ return y.match - x.match; });
+    return cands;
+  }
+  function hashRecords(records){
+    var s = JSON.stringify(records), h = 2166136261;
+    for(var i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h>>>0;
+  }
+  function mulberry(seed){
+    return function(){ seed |= 0; seed = seed + 0x6D2B79F5 | 0; var t = Math.imul(seed ^ seed>>>15, 1|seed); t = t + Math.imul(t ^ t>>>7, 61|t) ^ t; return ((t ^ t>>>14)>>>0)/4294967296; };
+  }
+  function bootstrap(records, filters, N, dropP){
+    var rnd = mulberry(hashRecords(records)), freq={}, tot=0;
+    for(var it=0; it<N; it++){
+      var drop = {};
+      for(var q=0;q<QUESTIONS.length;q++){ if(rnd()<dropP) drop[q]=true; }
+      var r = rank(aggregate(records, drop), filters);
+      if(r.length){ freq[r[0].c.id] = (freq[r[0].c.id]||0)+1; tot++; }
+    }
+    return {freq:freq, tot:tot};
+  }
+  function displayName(r){ return r.names.join(" / "); }
+
+  // ===== Padrão psicológico e tipo de jogabilidade (descritivo; não se usa para pontuar) =====
+  function trMean(a,k){ return a.tr[k].n ? a.tr[k].sum/a.tr[k].n : null; }
+  function riskMean(a){
+    var xs=[]; var r=trMean(a,"ris"); if(r!==null) xs.push(r);
+    if(a.game.n) xs.push((a.game.sum/a.game.n - 1)*2);
+    return xs.length ? mean(xs) : null;
+  }
+  function describePattern(a){
+    var ini=trMean(a,"ini"), pat=trMean(a,"pat"), ris=riskMean(a), plan=trMean(a,"plan"), res=trMean(a,"res");
+    var iH = ini!==null && ini>0.4, iL = ini!==null && ini<-0.4, pH = pat!==null && pat>0.4, pL = pat!==null && pat<-0.4;
+    var name, desc;
+    if(iH && pH){ name="Predador paciente"; desc="Espera sua janela, mas quando entra o faz com decisão."; }
+    else if(iH){ name="Caçador de iniciativa"; desc="Vive do contato: pressiona, entra e não solta."; }
+    else if(iL && pH){ name="Estrategista reativo"; desc="Deixa o rival se enganar e pune com precisão."; }
+    else if(iL){ name="Adaptável"; desc="Reage no caminho, sem se prender a um plano."; }
+    else { name="Tático equilibrado"; desc="Alterna entre esperar e pressionar conforme a leitura."; }
+    var notes=[];
+    if(ris!==null && ris>0.7) notes.push("apetite de risco alto"); else if(ris!==null && ris<-0.7) notes.push("tende a cuidar da vida e dos recursos");
+    if(plan!==null && plan>0.7) notes.push("se sente à vontade planejando"); else if(plan!==null && plan<-0.7) notes.push("rende melhor improvisando");
+    if(res!==null && res>0.7) notes.push("diante da derrota analisa e ajusta"); else if(res!==null && res<-0.7) notes.push("a derrota te pega forte: ajuda uma classe que se reinicie rápido");
+    return {name:name, desc:desc, notes:notes};
+  }
+  function describePlaystyle(a){
+    var order = ARCH.slice().sort(function(x,y){ return a.v[y]-a.v[x]; });
+    var top = order.slice(0,2).map(function(k){ return ARCH_LABELS[k]; });
+    var d = a.v.EJE - a.v.SOB, burst = d>=3 ? "de burst: golpes decisivos e saída" : (d<=-3 ? "sustentado: aguenta e desgasta" : "misto entre burst e resistência");
+    var e = a.v.ENT - Math.max(a.v.RAS, a.v.PRE), entry = e>=3 ? "entra primeiro" : (e<=-3 ? "entra quando já leu ou preparou" : "entra conforme a janela");
+    return {top:top, burst:burst, entry:entry};
+  }
+
+  function pathInfo(c, a){
+    if(c.path==="asc") return {label:"Ascensão (sem Sucessão)", head:"Seu caminho: Ascensão", body:"<b>"+c.names[0]+"</b> es una "+c.note};
+    if(c.path==="talent") return {label:"Talento (sem Sucessão)", head:"Seu caminho: Talento", body:"<b>Shai</b> "+c.note};
+    if(c.path==="agent") return {label:"Sucessão (única disponível hoje)", head:"Seu caminho: Sucessão (por enquanto)", body:"<b>Agent</b>: "+c.note+" Você terá que esperar o Despertar para comparar os dois caminhos."};
+    if(a.path>=1) return {label:"Despertar", head:"Seu caminho: Despertar", body:"Vai de <b>Despertar</b>: "+c.awk+" (Sucessão: "+c.succ+")"};
+    if(a.path<=-1) return {label:"Sucessão", head:"Seu caminho: Sucessão", body:"Vai de <b>Sucessão</b>: "+c.succ+" (Despertar: "+c.awk+")"};
+    return {label:"Despertar ou Sucessão", head:"Seu caminho: qualquer um dos dois", body:"Suas respostas não inclinaram a balança (ou tanto fez). Experimente ambos até o nível 56. Despertar: "+c.awk+" Sucessão: "+c.succ};
+  }
+
+  // ===== Histórico local (opcional) =====
+  var HKEY = "bdo_quiz_historial_v4_pt";
+  function loadHistory(){ try{ return JSON.parse(localStorage.getItem(HKEY)||"[]"); }catch(e){ return []; } }
+  function saveHistory(entry){ try{ var h=loadHistory(); h.push(entry); localStorage.setItem(HKEY, JSON.stringify(h.slice(-12))); return h.slice(-12); }catch(e){ return null; } }
+
+  // ===== UI =====
+  function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
+  function skippable(i){ var q=QUESTIONS[i]; return q.type==="keep" && state.filters.liked.length===0; }
+
+  function renderIntro(){
+    app.innerHTML =
+      '<p class="eyebrow">Oráculo de Calaphae · Afinidade de classe</p>'+
+      '<div class="intro"><h1>Sua classe de Black Desert: como caça, como decide, como joga</h1>'+
+      '<p class="sub">'+QUESTIONS.length+' perguntas sobre seu ciclo de caça, como reage sob pressão, seu papel e seu estilo, e sobre as classes que já conhece. Há «tanto faz», seleção múltipla e um cálculo que diz quão estável é o resultado. Inclui uma análise do seu padrão de jogo e as tier lists de outubro de 2026 para PvE, Node War capped T1-T2 e Solare 3v3.</p>'+
+      '<div class="chips-preview"><span>Ciclo de caça</span><span>Pressão</span><span>Papel</span><span>Estilo</span><span>Camino</span><span>Seu histórico</span><span>Meta</span></div>'+
+      '<button class="btn-primary" id="start">Começar</button>'+
+      '<p class="disclaimer">Os perfis de cada classe são estimativas do autor do teste, apoiadas em fontes apenas para alguns traços. A análise de padrão de jogo descreve tendências no jogo; não é um diagnóstico.</p></div>';
+    document.getElementById('start').onclick = function(){ state.idx=0; renderQuestion(); };
+  }
+
+  function secProgress(){
+    var q = QUESTIONS[state.idx], sec=q.sec, first=-1, last=-1;
+    QUESTIONS.forEach(function(x,i){ if(x.sec===sec){ if(first<0) first=i; last=i; } });
+    return {sec:sec, pos:state.idx-first+1, n:last-first+1};
+  }
+  function chipNames(role){
+    var seen={}, out=[], others = ["liked","disliked","excluded"].filter(function(r){ return r!==role; });
+    CLASSES.forEach(function(c){ c.names.forEach(function(nm,i){
+      if(state.filters.gender && c.genders[i]!==state.filters.gender) return;
+      if(seen[nm]) return;
+      for(var k=0;k<others.length;k++){ if(state.filters[others[k]].indexOf(nm)>=0) return; }
+      seen[nm]=1; out.push(nm);
+    }); });
+    return out;
+  }
+  function advance(dir){
+    state.idx += dir;
+    while(state.idx>0 && state.idx<QUESTIONS.length && skippable(state.idx)) state.idx += dir;
+    if(state.idx>=QUESTIONS.length) renderResult(); else renderQuestion();
+  }
+
+  function renderQuestion(){
+    var total = QUESTIONS.length, q = QUESTIONS[state.idx];
+    var pct = Math.round(state.idx/total*100), sp = secProgress();
+    var cur = state.records[state.idx] || [];
+    var html = '<div class="progress-wrap"><div class="progress-meta"><span><span class="sec-tag">'+esc(sp.sec)+'</span> · '+sp.pos+'/'+sp.n+'</span><span>Pergunta <b>'+(state.idx+1)+'</b> de '+total+'</span></div>'+
+      '<div class="progress-track"><div class="progress-fill" style="width:'+pct+'%"></div></div></div>';
+    html += '<div class="q-text">'+esc(q.q)+'</div>';
+    var backBtn = state.idx>0 ? '<button class="btn-ghost" id="back">← Anterior</button>' : '<span></span>';
+
+    if(q.type==="single"){
+      html += '<div class="options">';
+      q.opts.forEach(function(o,i){ html += '<button class="opt'+(cur.indexOf(i)>=0?' sel':'')+(o.ign?' ign':'')+'" data-i="'+i+'"><span class="mark">'+String.fromCharCode(65+i)+'</span>'+esc(o.t)+'</button>'; });
+      html += '</div><div class="q-footer">'+backBtn+(cur.length?'<button class="btn-ghost" id="next">Seguinte →</button>':'<span></span>')+'</div>';
+    } else if(q.type==="multi"){
+      html += '<div class="q-hint">Seleção múltipla: marque tudo o que se aplicar</div><div class="options">';
+      q.opts.forEach(function(o,i){ html += '<button class="opt'+(cur.indexOf(i)>=0?' sel':'')+(o.ign?' ign':'')+'" data-i="'+i+'"><span class="mark">'+(cur.indexOf(i)>=0?'■':'□')+'</span>'+esc(o.t)+'</button>'; });
+      html += '</div><div class="q-footer">'+backBtn+'<button class="btn-primary" id="cont"'+(cur.length?'':' disabled')+'>Continuar →</button></div>';
+    } else if(q.type==="gender" || q.type==="keep"){
+      var sel = q.type==="gender" ? state._gi : state._ki;
+      html += '<div class="options">';
+      q.opts.forEach(function(o,i){ html += '<button class="opt'+(sel===i?' sel':'')+(o.ign?' ign':'')+'" data-i="'+i+'"><span class="mark">'+String.fromCharCode(65+i)+'</span>'+esc(o.t)+'</button>'; });
+      html += '</div><div class="q-footer">'+backBtn+(sel!==undefined?'<button class="btn-ghost" id="next">Seguinte →</button>':'<span></span>')+'</div>';
+    } else if(q.type==="classes"){
+      html += '<div class="q-hint">'+esc(q.hint)+'</div><div class="chips">';
+      chipNames(q.role).forEach(function(nm){ html += '<button class="chip'+(state.filters[q.role].indexOf(nm)>=0?' sel':'')+'" data-n="'+esc(nm)+'">'+esc(nm)+'</button>'; });
+      html += '</div><div class="q-footer">'+backBtn+'<button class="btn-primary" id="cont">Continuar →</button></div>';
+    }
+    app.innerHTML = html;
+
+    var back = document.getElementById('back'); if(back) back.onclick = function(){ advance(-1); };
+    var nxt = document.getElementById('next'); if(nxt) nxt.onclick = function(){ advance(1); };
+
+    if(q.type==="single"){
+      Array.prototype.forEach.call(app.querySelectorAll('.opt'), function(b){ b.onclick = function(){ state.records[state.idx]=[parseInt(b.getAttribute('data-i'),10)]; advance(1); }; });
+    } else if(q.type==="multi"){
+      Array.prototype.forEach.call(app.querySelectorAll('.opt'), function(b){
+        b.onclick = function(){
+          var i = parseInt(b.getAttribute('data-i'),10), c = (state.records[state.idx]||[]).slice();
+          if(q.opts[i].ex){ c = (c.indexOf(i)>=0) ? [] : [i]; }
+          else { c = c.filter(function(x){ return !q.opts[x].ex; }); var p = c.indexOf(i); if(p>=0) c.splice(p,1); else c.push(i); }
+          state.records[state.idx]=c; renderQuestion();
+        };
+      });
+      document.getElementById('cont').onclick = function(){ advance(1); };
+    } else if(q.type==="gender"){
+      Array.prototype.forEach.call(app.querySelectorAll('.opt'), function(b){
+        b.onclick = function(){ var i=parseInt(b.getAttribute('data-i'),10); state._gi=i; state.filters.gender=q.opts[i].g; advance(1); };
+      });
+    } else if(q.type==="keep"){
+      Array.prototype.forEach.call(app.querySelectorAll('.opt'), function(b){
+        b.onclick = function(){ var i=parseInt(b.getAttribute('data-i'),10); state._ki=i; state.filters.keepPlayed=q.opts[i].k; advance(1); };
+      });
+    } else if(q.type==="classes"){
+      Array.prototype.forEach.call(app.querySelectorAll('.chip'), function(b){
+        b.onclick = function(){ var nm=b.getAttribute('data-n'), arr=state.filters[q.role], p=arr.indexOf(nm); if(p>=0) arr.splice(p,1); else arr.push(nm); renderQuestion(); };
+      });
+      document.getElementById('cont').onclick = function(){ advance(1); };
+    }
+  }
+
+  function gaugeBlock(label, info, lo, hi, textFn){
+    var off = info.w===0, pos = Math.round(((info.mean+2)/4)*100);
+    var imp = off ? "Tanto fez: não entra no cálculo" : (info.w>=0.75 ? "Importância alta no seu resultado" : (info.w>=0.4 ? "Importância média" : "Importância baixa: respondeu «tanto faz» em várias"));
+    return '<p class="section-label">'+label+' · '+(off?'sem preferência':textFn(info.mean))+'</p>'+
+      '<div class="gauge'+(off?' off':'')+'"><div class="gauge-fill" style="width:'+(off?50:pos)+'%"></div></div>'+
+      '<div class="gauge-labels"><span>'+lo+'</span><span>'+hi+'</span></div><p class="disclaimer" style="text-align:left;margin:-8px 0 14px;">'+imp+'</p>';
+  }
+  function traitRow(name, lo, hi, m){
+    if(m===null) return '';
+    var pos = Math.round(((Math.max(-2,Math.min(2,m))+2)/4)*100);
+    return '<div class="trow"><div class="trow-name"><span>'+name+'</span></div><div class="gauge"><div class="gauge-fill" style="width:'+pos+'%"></div></div><div class="gauge-labels"><span>'+lo+'</span><span>'+hi+'</span></div></div>';
+  }
+  function tierText(name, c, a, contents){
+    var pk = prefPathKey(c,a), out=[];
+    contents.forEach(function(ct){
+      var t = T[ct] && T[ct][name], conf = CONFLICT[ct] && CONFLICT[ct][name], parts=[];
+      ["S","A","X"].forEach(function(k){
+        if(t && t[k]!==undefined) parts.push((k===pk?'★ ':'')+PATH_NAMES[k]+': <b>'+t[k]+'</b>');
+        else if(conf && conf[k]) parts.push(PATH_NAMES[k]+': conflito na lista fonte ('+conf[k].join(' y ')+'), sem usar');
+      });
+      out.push('<p><b style="color:var(--sand-bright);">'+CONTENT_LABELS[ct]+':</b> '+(parts.length?parts.join(' · '):'sem dado na lista')+'</p>');
+    });
+    return out.join('');
+  }
+
+  function renderResult(){
+    var a = aggregate(state.records, null), R = rank(a, state.filters);
+    if(!R.length){ app.innerHTML='<p class="verdict-kicker">Sem resultados</p><p class="disclaimer">Seus filtros deixaram de fora todas as classes. Volte atrás e retire alguma exclusão.</p><div class="footer-actions"><button class="btn-ghost" id="restart">↺ Reiniciar</button></div>'; document.getElementById('restart').onclick=reset; return; }
+    var top=R[0], c=top.c, nameTop=displayName(top), second=R[1] || null;
+    var pct=function(r){ return Math.round(r.match*100); };
+    var B = bootstrap(state.records, state.filters, 400, 0.2);
+    var stab = Math.round(100*(B.freq[c.id]||0)/Math.max(1,B.tot));
+    var byFreq = Object.keys(B.freq).sort(function(x,y){ return B.freq[y]-B.freq[x]; }).slice(0,4);
+    var nameOf = function(id){ var r=R.filter(function(x){return x.c.id===id;})[0]; return r?displayName(r):id; };
+    var stabText = stab>=70 ? "Resultado estável: sai esta classe na grande maioria das variações." :
+      (stab>=40 ? "Estabilidade moderada: compete de perto com outras. Veja o top." : "Resultado instável: várias classes estão igualmente próximas. É normal que mude se repetir o teste.");
+    var gap = second ? (top.match - second.match)*100 : 100;
+    var gapText = !second ? "" : (gap<2 ? 'Empate técnico com <b>'+esc(displayName(second))+'</b> ('+pct(second)+'%).' : (gap<5 ? 'Ajustado frente a '+esc(displayName(second))+' ('+pct(second)+'%).' : 'Vantagem clara frente a '+esc(displayName(second))+' ('+pct(second)+'%).'));
+    var pi = pathInfo(c, a), contents = contentList(a);
+
+    var h = '<p class="verdict-kicker">✦ Veredito ✦</p>';
+    h += '<div class="verdict-box"><div class="verdict-class">'+esc(nameTop)+'</div><div class="verdict-path">'+esc(pi.label)+'</div>'+
+         '<div class="verdict-margin">Afinidade '+pct(top)+'% · '+gapText+'</div></div>';
+
+    // Por que esta classe
+    var userOrder = PHASES.slice().sort(function(x,y){ return a.v[y]-a.v[x]; });
+    var classOrder = PHASES.map(function(k,i){return [k,c.ph[i]];}).sort(function(x,y){return y[1]-x[1];});
+    h += '<hr class="divider"><p class="section-label">Por que esta classe</p>'+
+      '<div class="class-card"><p><b style="color:var(--sand-bright);">'+esc(nameTop)+'</b> — '+c.fantasy+' Suas fases mais fortes são <b>'+PHASE_LABELS[userOrder[0]]+'</b> y <b>'+PHASE_LABELS[userOrder[1]]+'</b>; esta classe se destaca em <b>'+PHASE_LABELS[classOrder[0][0]]+'</b> y <b>'+PHASE_LABELS[classOrder[1][0]]+'</b>.</p></div>'+
+      '<div class="path-box"><div class="ph">'+pi.head+'</div><p>'+pi.body+'</p></div>';
+
+    // Frente a la #2
+    if(second){
+      var diffs = top.parts.map(function(p,i){ var q=second.parts[i]; return {k:p[0], d:(p[1]*(p[2]-q[2]))/top.tw}; });
+      var wins = diffs.filter(function(x){return x.d>0.004;}).sort(function(x,y){return y.d-x.d;}).slice(0,2).map(function(x){return x.k;});
+      var loses = diffs.filter(function(x){return x.d<-0.004;}).sort(function(x,y){return x.d-y.d;}).slice(0,1).map(function(x){return x.k;});
+      h += '<div class="callout arcane"><b>Frente a '+esc(displayName(second))+':</b> '+esc(nameTop)+' ganha sobretudo em <b>'+(wins.length?wins.join(' y '):'detalhes pequenos')+'</b>'+(loses.length?'; '+esc(displayName(second))+' lhe ganha em <b>'+loses[0]+'</b>':'')+'.</div>';
+    }
+
+    var tied = R.slice(1,4).filter(function(r){ return (top.match - r.match)*100 < 3 && SIM[c.id][r.c.id] >= 0.85; });
+    if(tied.length){
+      h += '<div class="callout"><b>Empate de estilo de jogo:</b> '+esc(nameTop)+' y '+tied.map(function(r){ return esc(displayName(r)); }).join(', ')+' se jogam de forma muito parecida segundo o teste, então aqui manda o seu gosto: a estética e o personagem. '+
+        '<br><br><b>'+esc(nameTop)+':</b> '+c.fantasy+tied.map(function(r){ return '<br><br><b>'+esc(displayName(r))+':</b> '+r.c.fantasy; }).join('')+'</div>';
+    }
+
+    // Patrón psicológico y tipo de jugabilidad
+    var pat = describePattern(a), ps = describePlaystyle(a);
+    var cxI=softInfo(a,"cx"), el=softInfo(a,"eleg"), tm=softInfo(a,"team");
+    h += '<hr class="divider"><p class="section-label">Seu padrão de jogo</p>'+
+      '<div class="pattern-box"><h3>'+pat.name+'</h3><p>'+pat.desc+(pat.notes.length?' Além disso: '+pat.notes.join('; ')+'.':'')+'</p></div>';
+    h += traitRow("Iniciativa","Reativo","Proactivo",trMean(a,"ini"));
+    h += traitRow("Paciencia","Impulsivo","Paciente",trMean(a,"pat"));
+    h += traitRow("Risco no jogo","Cauteloso","Audaz",riskMean(a));
+    h += traitRow("Planejamento","Improvisa","Planeja",trMean(a,"plan"));
+    h += traitRow("Diante da derrota","Se tilta","Analisa e ajusta",trMean(a,"res"));
+    h += traitRow("Equipe","Autônomo","Coordinado", tm.w>0?tm.mean:null);
+    h += '<p class="section-label" style="margin-top:6px;">Seu tipo de jogabilidade</p>'+
+      '<div class="callout">Papéis que mais te atraem: <b>'+ps.top.join(' + ')+'</b>. Seu ritmo é <b>'+ps.burst+'</b> y <b>'+ps.entry+'</b>.</div>';
+
+    // Estabilidad
+    h += '<hr class="divider"><p class="section-label">Estabilidade do resultado</p>'+
+         '<p><span class="stab-big">'+stab+'%</span> <span style="color:var(--bone-dim);font-size:13px;"> de 400 variações (removendo ao acaso 1 em cada 5 respostas) continuam dando '+esc(nameTop)+'.</span></p>'+
+         '<p style="color:var(--bone-dim);font-size:13px;line-height:1.6;">'+stabText+'</p>';
+    h += '<div style="margin-top:8px;">'+byFreq.map(function(id){ return '<div class="rank-row"><div><b>'+esc(nameOf(id))+'</b></div><span>sai em '+Math.round(100*B.freq[id]/B.tot)+'%</span></div>'; }).join('')+'</div>';
+
+    // Ciclo de caza
+    h += '<hr class="divider"><p class="section-label">Seu ciclo de caça vs. o de '+esc(nameTop)+'</p>'+
+         '<div class="legend"><span><i style="background:var(--sand)"></i>Você</span><span><i style="background:var(--arcane)"></i>'+esc(nameTop)+' (estimativa do teste)</span></div>';
+    var mx = Math.max.apply(null, PHASES.map(function(k){ return a.v[k]; })) || 1;
+    PHASES.forEach(function(k,i){
+      h += '<div class="phase-row"><div class="phase-name">'+PHASE_LABELS[k]+'</div>'+
+        '<div class="bar-track"><div class="bar-fill you" style="width:'+Math.max(3,Math.round(a.v[k]/mx*100))+'%"></div></div>'+
+        '<div class="bar-track"><div class="bar-fill cls" style="width:'+Math.max(3,Math.round(c.ph[i]/3*100))+'%"></div></div></div>';
+    });
+
+    h += '<hr class="divider"><p class="section-label">Seu top 5</p>';
+    R.slice(0,5).forEach(function(r,i){ h += '<div class="rank-row"><div>'+(i+1)+'. <b>'+esc(displayName(r))+'</b></div><span>'+pct(r)+'%</span></div>'; });
+
+    h += '<hr class="divider"><p class="section-label">Suas afinidades de papel</p>';
+    var amx = Math.max.apply(null, ARCH.map(function(k){ return a.v[k]; })) || 1;
+    ARCH.slice().sort(function(x,y){ return a.v[y]-a.v[x]; }).slice(0,6).forEach(function(k,i){
+      h += '<div class="phase-row"><div class="phase-name">'+ARCH_LABELS[k]+'</div><div class="bar-track"><div class="bar-fill '+(i<2?'you':'mid')+'" style="width:'+Math.max(3,Math.round(a.v[k]/amx*100))+'%"></div></div></div>';
+    });
+
+    var rg=softInfo(a,"rng");
+    h += '<hr class="divider">';
+    h += gaugeBlock("Distância", rg, "Corpo a corpo","À distância", function(m){ return m<=-1?"Corpo a corpo":(m>=1?"À distância":"Misto"); });
+    h += gaugeBlock("Elegância vs. brutalidade", el, "Brutal","Elegante", function(m){ return m<=-1?"Mais brutal":(m>=1?"Mais elegante":"Ponto médio"); });
+    var L = 2 + cxI.mean/2;
+    h += gaugeBlock("Dificuldade desejada", cxI, "Fácil","Alta", function(m){ return L<=1.5?"Prefere fácil":(L>=2.5?"Aceita dificuldade alta":"Dificuldade média"); });
+    var softRow=function(label,lo,hi,key){ var i=softInfo(a,key); return i.w>0 ? traitRow(label,lo,hi,i.mean) : ''; };
+    var detail = softRow("Proteção ao atacar","Leve e letal","Protegido","prot")+softRow("Esquiva com invulnerabilidade","Aguentar","Esquivar","eva")+softRow("Controle de multidões (CC)","Sem CC","Central","cc")+softRow("Agarre","Sem agarre","Rápido e central","grab")+softRow("Mobilidade de posicionamento","Terrestre simples","Aérea / teletransporte","mov")+softRow("Ritmo","Lento e pesado","Rápido e ágil","spd")+softRow("Tipo de dano","Sustentado","Burst","brst");
+    if(detail) h += '<p class="section-label" style="margin-top:6px;">Seu estilo de combate em detalhe</p>'+detail+'<p class="disclaimer" style="text-align:left;">Só aparecem as dimensões em que deu uma preferência; as que respondeu «tanto faz» não contam.</p>';
+
+    // Historial (anclas)
+    if(state.filters.liked.length || state.filters.disliked.length || state.filters.excluded.length){
+      h += '<hr class="divider"><p class="section-label">Como usei seu histórico</p><div class="callout arcane">'+
+        (state.filters.liked.length?'Jogabilidade que te agradou (usada para se parecer a ela): <b>'+esc(state.filters.liked.join(', '))+'</b>. ':'')+
+        (state.filters.disliked.length?'Jogabilidade que não te agradou (usada para se afastar): <b>'+esc(state.filters.disliked.join(', '))+'</b>. ':'')+
+        (state.filters.excluded.length?'Descartadas sem mais: <b>'+esc(state.filters.excluded.join(', '))+'</b>. ':'')+
+        (state.filters.keepPlayed===false && state.filters.liked.length?'Pediu algo novo, então suas classes atuais não podem sair.':'')+'</div>';
+    }
+
+    // Meta
+    var mi = a.metaImp>=2 ? "Disse que o meta importa muito: pesa bastante no cálculo." : (a.metaImp===1 ? "Disse que o meta é um desempate: pesa pouco no cálculo." : "Disse que o meta não importa: é mostrado, mas não conta no cálculo.");
+    var bestPathNote = '';
+    if(c.path==="dual" && a.metaImp>=1){
+      var avgs = {S:[],A:[]};
+      top.names.forEach(function(nm){ contents.forEach(function(ct){ var t=T[ct]&&T[ct][nm]; if(!t) return; ["S","A"].forEach(function(k){ if(t[k]!==undefined) avgs[k].push(TS[t[k]]); }); }); });
+      if(avgs.S.length && avgs.A.length){
+        var ms=mean(avgs.S), ma=mean(avgs.A), rec = a.path>=1?"A":(a.path<=-1?"S":null), bestK = ms>ma?"S":(ma>ms?"A":null);
+        if(bestK && rec && bestK!==rec) bestPathNote = '<p style="opacity:.85;">Atenção: com seus conteúdos, o caminho com melhor tier é <b>'+PATH_NAMES[bestK]+'</b>, distinto do que seu estilo recomenda (<b>'+PATH_NAMES[rec]+'</b>).</p>';
+      }
+    }
+    h += '<div class="meta-box"><div class="mh">Meta · tier lists de outubro de 2026 · '+esc(contents.map(function(x){return CONTENT_LABELS[x];}).join(', '))+'</div>'+
+      top.names.map(function(nm){ return (top.names.length>1?'<p style="margin-top:8px;"><b style="color:var(--sand-bright);">'+esc(nm)+'</b></p>':'')+tierText(nm,c,a,contents); }).join('')+
+      bestPathNote+
+      '<p style="opacity:.8;">'+mi+' PvE: Garmoth (by Choice, 2/10/2026). PvP: listas fornecidas pelo autor do teste. ★ marca o caminho que recomendo. Para uncapped, o Gearscore pesa mais que o meta.</p></div>';
+
+    var irl = a.irl.n? a.irl.sum/a.irl.n : 0, gm = a.game.n? a.game.sum/a.game.n : 0;
+    var risk = gm>irl+0.25 ? "No jogo você se permite ser mais arriscado do que é na vida real: estes mundos podem ser seu espaço para soltar o controle." :
+      (gm<irl-0.25 ? "No jogo você é mais cauteloso do que na vida real: talvez o use para praticar o cálculo e a paciência." : "Sua forma de tomar riscos é consistente dentro e fora do jogo.");
+    h += '<hr class="divider"><p class="section-label">Espelho: jogo vs. vida real</p><div class="callout">'+risk+'</div>';
+
+    h += '<hr class="divider"><p class="section-label">Despertar, Sucessão e Ascensão</p>'+
+      '<div class="callout arcane">A maioria das classes tem <b>Sucessão</b> (sua arma original, aperfeiçoada) e <b>Despertar</b> (arma e kit novos) a partir do nível 56-60. As classes <b>tipo Ascensão</b> (Archer, Scholar, Deadeye, Wukong e Seraph) não têm Sucessão: começam com um set e evoluem para seu kit de Ascensão. <b>Shai</b> é única: usa Talento como árvore de habilidades (as listas de Garmoth a colocam em Ascensão). <b>Agent</b> tem Sucessão desde julho de 2026 e seu Despertar chega no inverno.</div>';
+
+    var hist = saveHistory({t:Date.now(), top:R.slice(0,3).map(displayName), stab:stab});
+    if(hist && hist.length>1){
+      var tally={}; hist.forEach(function(x){ x.top.forEach(function(n){ tally[n]=(tally[n]||0)+1; }); });
+      var tk = Object.keys(tally).sort(function(x,y){ return tally[y]-tally[x]; }).slice(0,5);
+      h += '<hr class="divider"><p class="section-label">Seus últimos '+hist.length+' tentativas (salvo só neste navegador)</p>'+
+        '<p style="color:var(--bone-dim);font-size:13px;line-height:1.6;">Classes que mais aparecem no seu top 3: '+tk.map(function(n){ return '<b>'+esc(n)+'</b> ('+tally[n]+')'; }).join(' · ')+'. As que se repetem em várias tentativas são seu sinal mais confiável.</p>';
+    }
+
+    h += '<p class="disclaimer">Os perfis de fase, papel, distância, elegância, dificuldade e equipe de cada classe são estimativas do autor do teste. A porcentagem é afinidade entre seu perfil e o da classe, não uma probabilidade. A estabilidade mede quanto o resultado depende de respostas isoladas, não se o teste acerta. O padrão de jogo descreve tendências, não é um diagnóstico.</p>';
+    h += '<div class="footer-actions"><button class="btn-ghost" id="restart">↺ Repetir o teste</button></div>';
+    app.innerHTML = h;
+    document.getElementById('restart').onclick = reset;
+  }
+
+  function reset(){ state = { idx:0, records:new Array(QUESTIONS.length), filters:freshFilters(), _gi:undefined, _ki:undefined }; renderIntro(); }
+
+  window.__BDO = { QUESTIONS:QUESTIONS, CLASSES:CLASSES, PHASES:PHASES, ARCH:ARCH, T:T, CONFLICT:CONFLICT, TS:TS, aggregate:aggregate, rank:rank, bootstrap:bootstrap,
+                   state:function(){ return state; }, setRecords:function(r,f){ state.records=r; state.filters=Object.assign(freshFilters(), f||{}); }, renderResult:renderResult,
+                   describePattern:describePattern, describePlaystyle:describePlaystyle, nameMeta:nameMeta, SIM:SIM };
+  renderIntro();
+})();
+
+</script>
+</body>
+</html>
